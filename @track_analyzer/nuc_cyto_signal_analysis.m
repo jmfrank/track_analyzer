@@ -10,8 +10,11 @@
 %nuclear intensity for the pre-calculated mask. Then take that plane +/- a
 %few other planes to do MIP and nuc/cyto calculations
 
-function obj = nuc_cyto_signal_analysis(obj, params, step, force_frame)
+function obj = nuc_cyto_signal_analysis_multiChannel(obj, params, step, force_frame)
 
+
+params = default_params(params);
+step   = default_step( step );
 
 debug = 0;
 if(debug)
@@ -60,8 +63,13 @@ for t = frames
         this_plane = reader.getIndex(i-1,params.seg_channel-1,t-1)+1;
         msk_img(:,:,i) = bfGetPlane(reader,this_plane);
         
-        this_plane = reader.getIndex(i-1,params.signal_channel-1,t-1)+1;
-        sig_img(:,:,i) = bfGetPlane(reader,this_plane);
+        %Check if signal channel is same as seg_channel. 
+        if params.signal_channel==params.seg_channel
+            sig_img(:,:,i) = bfGetPlane(reader,this_plane);
+        else
+            this_plane = reader.getIndex(i-1,params.signal_channel-1,t-1)+1;
+            sig_img(:,:,i) = bfGetPlane(reader,this_plane);
+        end
         
     end
     
@@ -180,15 +188,14 @@ for t = frames
         
     end
     
-    %Now save the frame_obj
-    frame_obj.data = data;
+    %Now save the frame_obj. Saving to a channel specific field.
+    frame_obj.(['channel_',pad(num2str(params.signal_channel),2,'left','0')]) = data;
     save(seg_files{t},'frame_obj','-append')
 
     if(debug);pause;if(i < length(obj.img_files));clf(7);end;end
     toc
 end
 
-       
 if(debug);hold off;end;
 
 obj.nuc_cyto_calc = true;
