@@ -58,6 +58,16 @@ classdef track_analyzer
     
     methods
         
+        
+        function obj = save(obj)
+
+            %Save myself! Use append in case there are other parts to the track_file. 
+            track_obj = obj;
+            save(obj.exp_info.track_file,'track_obj');
+
+        end
+
+
         %Can also load data into the object
         function obj = add_data(obj,in_data)
             
