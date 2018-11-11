@@ -42,6 +42,10 @@ for t = 1:T
     else
         disp('unsupported bit type!');
     end 
+    
+    fprintf(repmat('/b',[1,length(disp_str)]))
+    disp_str = [' at frame: ',num2str(t)];
+    
 end
 
 %Apparently we don't need to re-order to 5D image with xy? Using order: XYTZC
