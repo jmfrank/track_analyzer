@@ -182,6 +182,34 @@ classdef track_analyzer
         
         end
         
+        %Return all cell contours. 
+        function cells = getCellContours(  obj )
+            %Load frame obj. 
+            seg_files = obj.get_frame_files;
+            %Loop and load. 
+            disp()
+            cells= cell(length(seg_files),1);
+            disp_str = '';
+            for i=1:length(seg_files)
+                tmp = load( seg_files{i},'frame_obj');
+
+                try
+
+                    cells{i} = tmp.frame_obj.contours;
+                catch
+
+                    if isfield(tmp.frame_obj,'PixelIdxList')             
+                        cells{i} = tmp.frame_obj.PixelIdxList;
+                    else
+                        cells{i} = [];
+                    end
+                end
+                clearString(disp_str);
+                disp_str=['loading frame ',num2str(i)];
+                disp(disp_str);
+            end          
+        end
+        
         %Return intensity traces of spot tracks
         function int_traces = getSpotTrackIntTraces( obj, indices, int_thresh )
 

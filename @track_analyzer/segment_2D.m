@@ -318,9 +318,7 @@ disp(['Started frame: ',num2str(t)])
     end
     
     %% smoothing, filling holes, removing bad blobs. 
-        
-
-    
+          
     %Collect stats. 
     stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
 
@@ -472,10 +470,6 @@ disp(['Started frame: ',num2str(t)])
         disp('Finished watershed')
     end
     
-    if(step.debug)
-        figure
-       imshow3D(BW) 
-    end
     %% Error if there's no cells.
     if(~isfield(stats,'PixelList'))
         error('No cells found!')

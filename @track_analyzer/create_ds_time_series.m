@@ -26,6 +26,7 @@ out_img = zeros(size_y,size_x,T,'uint8' );
 
 %LSM time series goes Z first, then time. For each time point, load the
 %Z-stack at time t, then max project, append to output image. ALways convert to 8-bit. 
+disp_str='';
 for t = 1:T
 
     %Get the images for this z-stack according to bioformats reader
@@ -43,9 +44,9 @@ for t = 1:T
         disp('unsupported bit type!');
     end 
     
-    fprintf(repmat('/b',[1,length(disp_str)]))
-    disp_str = [' at frame: ',num2str(t)];
-    
+    fprintf(repmat('\b',[1,length(disp_str)+1]))
+    disp_str = ['at frame: ',num2str(t)];
+    disp(disp_str)
 end
 
 %Apparently we don't need to re-order to 5D image with xy? Using order: XYTZC

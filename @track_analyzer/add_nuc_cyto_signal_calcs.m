@@ -27,7 +27,7 @@ else
     if isfield(tmp.frame_obj,'data')
         channels{1}='data';
     else
-        channels=cellstr('')
+        channels=cellstr('');
         c=0;
         for i = 1:3
             if isfield(tmp.frame_obj,['channel_',pad(num2str(i),2,'left','0')])

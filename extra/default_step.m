@@ -15,7 +15,8 @@ dstep.CLAHE=0;
 dstep.MeanFilter=0;
 dstep.threshold_by_histogram=0;
 dstep.nuc_thresh = 0;
-
+dstep.iterative_thresholding=0;
+dstep.channel=1;
 
 S  = fieldnames( dstep );
 

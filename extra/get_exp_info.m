@@ -139,11 +139,7 @@ switch data_type
 end
 
     
-
-
 %Add path to data. 
 exp_info.path_2_data = base_dir;
-
-
 
 end

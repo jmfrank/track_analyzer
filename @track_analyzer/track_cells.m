@@ -87,8 +87,12 @@ track_counter=0;
     old_centroid_loc = get_centroid_location(obj,track_counter);
 
     %Now continue for all time points after start_frame. 
+    disp_str = '';
     for i = start_frame+1:length(seg_files)
-        display(['Analyzing frame: ',num2str(i)])
+        
+        fprintf( repmat('\b',[1,length(disp_str)+1]))
+        disp_str = ['Analyzing frame: ',num2str(i)];
+        disp(disp_str)
         
         %Load frame data
         data = load(seg_files{i},'frame_obj');

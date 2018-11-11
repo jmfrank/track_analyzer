@@ -10,7 +10,7 @@
 %nuclear intensity for the pre-calculated mask. Then take that plane +/- a
 %few other planes to do MIP and nuc/cyto calculations
 
-function obj = nuc_cyto_signal_analysis_multiChannel(obj, params, step, force_frame)
+function obj = nuc_cyto_signal_analysis(obj, params, step, force_frame)
 
 
 params = default_params(params);

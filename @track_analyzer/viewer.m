@@ -2,27 +2,14 @@
 % raw image and plots Track id and detected nascent spots. 
 
 % This is based off imshow3D. 
-function results_viewer(obj, params,step,tracks)
+function viewer(obj, step,tracks)
 
 
 if nargin<2
-    params = struct;
-    step = struct;
-elseif nargin < 3
     step = struct;
 end
 
 step=default_step(step);
-params = default_params(params);
-
-
-if(nargin<2)
-    params.channel=1;
-end
-
-if(~isfield(params,'channel'))
-    params.channel = 1;
-end
 
 if ~isfield(step,'AutoAdjust')
     step.AutoAdjust=0;
@@ -34,7 +21,6 @@ if ~isfield(step,'tracks')
 else
     states.tracks = 1;
 end
-
 
 %Display spots?
 if(~isfield(step,'spots'))
@@ -51,26 +37,7 @@ if(~isfield(step,'cells'))
     states.cells=0;
 else
     if(step.cells)
-        %Load frame obj. 
-        seg_files = obj.get_frame_files;
-        %Loop and load. 
-        disp('loading frame objs')
-        cells= cell(length(seg_files),1);
-        for i=1:length(seg_files)
-            tmp = load( seg_files{i},'frame_obj');
-                        
-            try
-                
-                cells{i} = tmp.frame_obj.contours;
-            catch
-                
-                if isfield(tmp.frame_obj,'PixelIdxList')             
-                    cells{i} = tmp.frame_obj.PixelIdxList;
-                else
-                    cells{i} = [];
-                end
-            end
-        end
+        cells = obj.getCellContours();
         states.cells=1;
     else
         states.cells=0;
@@ -139,7 +106,7 @@ if( iscell( obj.exp_info.img_file ))
         Img{e} = zeros(Y,X,T);
         %Loop over frames, add to img cell. 
         for t = 1:T
-            plane = get_planesZCT(reader,Z,params.channel,t);
+            plane = get_planesZCT(reader,Z,step.channel,t);
             Img{e}(:,:,t) = this_img{1}{plane,1};
         end
         
@@ -167,14 +134,14 @@ else
             %load one frame at a time. 
             Img{1} = zeros(Y,X,T);
             for t = 1:T
-                plane = get_planesZCT(reader,Z,params.channel,t);
+                plane = get_planesZCT(reader,Z,step.channel,t);
                 Img{1}(:,:,t) = bfGetPlane(reader,plane);
             end
         else           
             this_img = bfopen(fname);
             Img{1} = zeros(Y,X,T);
             for t = 1:T
-                plane = get_planesZCT(reader,Z,params.channel,t);
+                plane = get_planesZCT(reader,Z,step.channel,t);
                 Img{1}(:,:,t) = this_img{1}{plane,1};
             end
         end
@@ -200,7 +167,7 @@ else
             %Compact IMG into time-sstack. Z should be 1
             Img{1} = zeros(Y,X,T);
             for t = 1:T
-               planes = get_planesZCT( reader,Z,params.channel,t);
+               planes = get_planesZCT( reader,Z,step.channel,t);
                Img{1}(:,:,t) =this_img{1}{planes,1};
             end
 
@@ -214,10 +181,10 @@ else
 
 end
 
-%Deal with specified ROI. 
-if isfield(params,'roi')
-    x_range = params.roi(1): params.roi(1) + params.roi(3) - 1;
-    y_range = params.roi(2): params.roi(2) + params.roi(4) - 1;
+%% Deal with specified ROI. 
+if isfield(step,'roi')
+    x_range = step.roi(1): step.roi(1) + step.roi(3) - 1;
+    y_range = step.roi(2): step.roi(2) + step.roi(4) - 1;
     %Check size of image. 
     sel_x = x_range > 0 & x_range < X;
     sel_y = y_range > 0 & y_range < Y;
@@ -225,10 +192,9 @@ if isfield(params,'roi')
     y_range = y_range(sel_y);
 end
 
-
+%% Loading various data. 
 %Add some things to appdata
 setappdata(0,'track_obj',obj);
-
 
 %Save dimensions to DATA
 DATA.dims = [Y,X,Z,C,T];
@@ -329,7 +295,7 @@ TOOL = TOOL_BOX( );
 TOOL.Visible='on';
 
 
-%% Set up. 
+%% Set up GUI. 
 %Dimensions of image
 sizes = size(Img);
 M=sizes(1);
@@ -415,7 +381,7 @@ figure(MAIN);
 %axes('position',[0,0.2,1,0.8]), 
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
-if isfield(params,'roi')
+if isfield(step,'roi')
     imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
 else
     imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
@@ -474,6 +440,7 @@ end
 %Add slider to guidata. 
 gdata.slider=Thand;
 gdata.reset_flags = @reset_flags;
+gdata.cells_callback = @cells_callback;
 guidata(MAIN, gdata)
 
 set(MAIN, 'WindowScrollWheelFcn', @mouseScroll);
@@ -487,6 +454,7 @@ set(MAIN,'ResizeFcn', @figureResized)
 %because text are children of Main? 
 DrawTracks
 
+%% GUI Functions. 
 % -=< Reset flags matrix >=-
     function reset_flags()
         
@@ -510,6 +478,15 @@ DrawTracks
             flagged.spots=[];
         end
         setappdata(0,'flagged',flagged);
+    end
+
+
+% If user decides they really want to look at cells and they weren't
+% loaded. 
+    function cells_callback()
+        
+        cells = obj.getCellContours();
+        
     end
 
 
@@ -554,7 +531,7 @@ DrawTracks
         frame_idx = frame2img(t,2);
         
         %Plot image. 
-        if isfield(params,'roi')
+        if isfield(step,'roi')
             set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
@@ -576,7 +553,6 @@ DrawTracks
 
 % -=< Mouse scroll wheel callback function >=-
     function mouseScroll (object, eventdata)
-        eventdata.Source
         MAIN;
         UPDN = eventdata.VerticalScrollCount;
         t = t - UPDN;
@@ -597,7 +573,7 @@ DrawTracks
         img_idx = frame2img(t,3);
         frame_idx = frame2img(t,2);
         %Plot image. 
-        if isfield(params,'roi')
+        if isfield(step,'roi')
             set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
@@ -679,7 +655,6 @@ DrawTracks
 
 %% Drawing detected spot centroids on top of frame
     function DrawTracks(object, eventdata)
-        
         %Update states. 
         states = getappdata(0,'states');
         MAIN;
@@ -692,8 +667,8 @@ DrawTracks
         MAIN;
         
         %Shift if using ROI. 
-        if isfield(params,'roi')
-            shift_vec = [-params.roi(1),-params.roi(2)];
+        if isfield(step,'roi')
+            shift_vec = [-step.roi(1),-step.roi(2)];
         else
             shift_vec = [0,0];
         end
@@ -921,7 +896,7 @@ DrawTracks
         
             
             this_track = tracks_curr{ track_id };
-            data =obj.nuc_cyto_data( this_track(:,5));
+            data =obj.get_track_data( track_id );
             sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
             title(['Track: ',num2str(track_id)]);
             %Plot the trace. 
@@ -1023,8 +998,8 @@ DrawTracks
                     end
                     
                     %Shift if using ROI. 
-                    if isfield(params,'roi')
-                        shift_vec = [-params.roi(1),-params.roi(2)];
+                    if isfield(step,'roi')
+                        shift_vec = [-step.roi(1),-step.roi(2)];
                     else
                         shift_vec = [0,0];
                     end
@@ -1064,8 +1039,8 @@ DrawTracks
         end
         
         %Figure out which cells to draw. 
-        if isfield(params,'selected_tracks')
-            track_ids=params.selected_tracks;
+        if isfield(step,'selected_tracks')
+            track_ids=step.selected_tracks;
         else
             track_ids = [1:length(obj.tracks)];
         end
