@@ -10,7 +10,6 @@ function obj = segment_2D(obj, params, step, FORCE_FRAMES)
 params=default_params(params);
 step=default_step(step);
 
-
 %% Pre-processing using bio-formats. 
 
 %Generate reader. Use memoizer. Oif files can be really slow. Since segmentation is
@@ -313,7 +312,6 @@ disp(['Started frame: ',num2str(t)])
     
     %Simple binarization. 
     else
-
         BW  = J >= params.thrshlevel;
     end
     

@@ -10,7 +10,7 @@ function BW = iterative_thresholding(I, J, real_bg, params )
 
 
 %For now, just hard code the peak range 
-params.peak_range=[10:85];
+params.peak_range=[5:85];
 
 %First find local maxima of I. 
 BWmax = imextendedmax(I,params.Hdepth);
@@ -20,6 +20,9 @@ stats_max = regionprops(BWmax,J,'centroid','MeanIntensity','PixelIdxList');
 
 %Find blobs using lower bound estimation of threshold. 
 BW = J >= params.thresh_start;
+%Fill holes. 
+BW = imfill(BW,'holes');
+%Close. 
 stats_J = regionprops(BW,'centroid','PixelIdxList','Area');
 %Filter out J blobs that are too small. 
 sel = [stats_J.Area] >= 0.8*params.AbsMinVol;
@@ -50,7 +53,7 @@ for i = 1:length(stats_max)
         %Query if blob encompasses most (or all?) of regional max. 
         unmatched_pixels = setdiff( stats_max(i).PixelIdxList, stats_J( b ).PixelIdxList );
         
-        if length(unmatched_pixels) <= 0.05*length(stats_max(i).PixelIdxList)
+        if length(unmatched_pixels) <= 0.09*length(stats_max(i).PixelIdxList)
             matched(i) = b;
         end
     end
