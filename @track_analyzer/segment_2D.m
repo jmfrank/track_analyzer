@@ -122,7 +122,7 @@ disp(['Started frame: ',num2str(t)])
     
         AbsMinVol = params.AbsMinVol;
         AbsMaxVol = params.AbsMaxVol; %Maximum voxel per single nucleus
-        tmptmp=111;
+
         %%Derivatives Sum (DS) Algorithm
         alpha = params.alpha;
         beta = params.beta;
