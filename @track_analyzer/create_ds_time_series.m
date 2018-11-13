@@ -7,15 +7,12 @@ function obj = create_ds_time_series(obj, params)
 debug = 0;
 
 
-Z = obj.exp_info.z_planes;
-T = obj.exp_info.t_frames;
-
-
 %Generate reader. FOR NOW, assume we are looking in series 1. 
-reader = bfGetReader(obj.exp_info.img_file);
+[reader,X,Y,Z,C,T] = bfGetReader(obj.exp_info.img_file);
+
 series = 1;
-BITS = reader.getBitsPerPixel
-IMG = obj.exp_info.img_file
+BITS = reader.getBitsPerPixel;
+IMG = obj.exp_info.img_file;
 %Get the image size of this series. 
 size_x = reader.getSizeX;
 size_y = reader.getSizeY;
