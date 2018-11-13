@@ -34,7 +34,7 @@ if(step.debug)
 end  
 
 %% Generate im_info structure
-    ZSlicesinStack = obj.exp_info.z_planes;
+    ZSlicesinStack = reader.getSizeT;
 
     image_bits     = reader.getBitsPerPixel;   
     
@@ -51,11 +51,6 @@ end
         
     
 %% Loop over images. Need to check if more than one image, do parallel. 
-if(T>1 & step.parallel)
-    parallel = 1;
-else
-    parallel = 0;
-end
 
 %Experiment info to pass along. 
 exp_info = obj.exp_info;
@@ -73,22 +68,18 @@ else
     new_ts = setdiff(all_ts,t_val);
 end
 
-new_ts = 1;
-%Now run loops 
-    if(parallel)
-        disp('New frames to calculate:')
-        disp(new_ts)
-        parfor g = 1:length(new_ts)
-            t = new_ts(g);
-            inner_function( exp_info, Z_cell{t}, params, step, t, reader)
-        end
-    else
-        disp('New frames to calculate:')
-        disp(num2str(new_ts))
-        for t = new_ts
-            inner_function( exp_info, Z_cell{t},params,step,t, reader)
-        end
-    end
+%If user specifies list of frames as last input, then for frames accordinly
+if nargin==4
+    new_ts = FORCE_FRAMES;
+end
+
+
+%Now run loops
+disp('New frames to calculate:')
+disp(num2str(new_ts))
+for t = new_ts
+    inner_function( exp_info, Z_cell{t},params,step,t, reader)
+end
 
 %Close reader at very end. 
 reader.close();
@@ -101,8 +92,6 @@ function inner_function( exp_info, planes, params, step, t, reader)
 disp(['Started frame: ',num2str(t)])
 
 %%%%%%%%%%%%%%% PARAMETERS %%%%%%%%%%%%%%%%  
-    %% Segmentation steps
-        display_plots = step.display_plots;
         
     %% Set Segmentation Algorithm Parameter values
     
@@ -174,9 +163,17 @@ disp(['Started frame: ',num2str(t)])
        
     %% PRE-PROCESSING STEPS. Filters, and removing outliers. 
 
-    %PRE-PRfiOCESS image with mean filter if desired
+    %PRE-PROCESS image with mean filter if desired
     if(step.MeanFilter)
-        tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
+        
+        if image_bits==8
+            if ~strcmp(class(I),'uint8')
+                I = uint8(I);
+            end
+            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
+        elseif image_bits==16
+            tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
+        end
         
         %%%% This step might help bring everything to 16bit levels. Try
         %%%% manually changing bit size to 16 here. 
@@ -245,15 +242,27 @@ disp(['Started frame: ',num2str(t)])
     
     J=(double(G).*Multi); % masked image applied on smoothened image
     
+    %Estimate threshold by histogram. 
+    if step.threshold_by_histogram 
+        P = prctile(J(:),params.percentile);
+        thrshlevel = P;
+    end
+    
     %Simple binarization. 
     BW  = J >= thrshlevel;
+ 
+    if step.debug
+        
+       imshow3D(J) 
+    end
+    
        
     %Collect stats. 
     stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
     
-    %Remove volumes below size threshold. 
+    %Remove VERY small volumes
     volumes = [stats.Area]';
-    sel = volumes >= AbsMinVol;
+    sel = volumes >= AbsMinVol/4;
     stats = stats(sel);
     
     %Rebuild BW
@@ -265,7 +274,8 @@ disp(['Started frame: ',num2str(t)])
     if(step.imclose)
         %Now use imclose to remove gaps. Operate on individual cells so
         %that we minimize connecting cells that are close together. 
-        se= strel('disk',imclose_r);
+        se= strel('disk',imclose_r,8);
+        new_BW = zeros(size(BW));
         
         stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
         
@@ -278,21 +288,53 @@ disp(['Started frame: ',num2str(t)])
             y_range = [min(Y):max(Y)];
             z_range = [min(Z):max(Z)];
 
-            %Perform morphological closing.
-            BW(y_range,x_range,z_range) = imclose(BW(y_range,x_range,z_range),se);
+            %Need to make a sub-img! 
+            sub_img = false(length(y_range),length(x_range),length(z_range));
+            %Shift og pixels to sub_img pixels. 
+            X = X - x_range(1) + 1;
+            Y = Y - y_range(1) + 1;
+            Z = Z - z_range(1) + 1;
+            %Get index. 
+            ind = sub2ind(size(sub_img),Y,X,Z);
+            sub_img(ind) = 1;
+            %Close. 
+            sub_img = imclose(sub_img,se);
+            
+            %Find closed coordinates. 
+            [Y,X,Z] = ind2sub(size(sub_img),find(sub_img));
+            %Shift back into place. 
+            X = X + x_range(1) - 1;
+            Y = Y + y_range(1) - 1;
+            Z = Z + z_range(1) - 1;
+            %New index. 
+            ind = sub2ind(size(BW),Y,X,Z);
+            %Fill in the large image. 
+            new_BW(ind) = 1;
         end
-                    
+    else
+        new_BW = BW;
     end
   
     %Now fill in some holes. 
     for i = 1:1:ZSlicesinStack
         %Also fill holes laterally. Vertical holes can be
         %problematic if we just to imfill with 3D stack
-        BW(:,:,i) = imfill(BW(:,:,i),'holes');
-    end    
+        new_BW(:,:,i) = imfill(new_BW(:,:,i),'holes');
+    end
     
+    %Collect stats again. 
+    stats = regionprops(logical(gather(new_BW)),'Centroid','Area','PixelList','PixelIdxList');
+    %Remove VERY small volumes
+    volumes = [stats.Area]';
+    sel = volumes >= AbsMinVol;
+    stats = stats(sel);
+    
+    %Rebuild BW
+    BW = false(size(BW));
+    BW( cat(1,stats.PixelIdxList) ) = 1;
+
+    %End timing
     toc
-  
         
     %% Looking for high intensity outliers. 
     if(step.FilterOutliers)
@@ -337,8 +379,13 @@ disp(['Started frame: ',num2str(t)])
     %New volume list
     volumes = [stats.Area]';   
     liar_list = find( volumes > AbsMaxVol);
+
+    %Plot liar tex
+    if(step.debug)
+        plot_liar_text( stats, liar_list );
+    end
     
-      %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF. 
+    %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF.
     if( step.watershed3D)
         disp('Starting watershed')
         tic
@@ -369,15 +416,22 @@ disp(['Started frame: ',num2str(t)])
             y_range = min_range(2):max_range(2);
             z_range = min_range(3):max_range(3);
 
-            %Sub region of BW. 
-            sub_bw = BW( y_range, x_range, z_range );
+            %Create a sub image of BW. 
+            sub_bw = zeros(length(y_range),length(x_range),length(z_range));
+            
+            %Add in the ones from this blob. 
+            X = Px(:,1) - x_range(1) + 1;
+            Y = Px(:,2) - y_range(1) + 1;
+            Z = Px(:,3) - z_range(1) + 1;
+            ind = sub2ind(size(sub_bw),Y,X,Z);
+            sub_bw(ind) = 1;
 
             %Distance transform (faster without using gpu when image is
             %small. 
             imgDist = -bwdistsc(~sub_bw,scales);
 
             %Smoothing. Med filter is actually important here! 
-            imgDist = medfilt3(imgDist,[5,5,5]);    
+            imgDist = medfilt3(imgDist,[3,3,3]);    
 
             %Get seeds  %%ORIGINAL params were 0.7,6. With medfilt3 = 5,5,5. 
             mask = imextendedmin(imgDist,params.h_min_depth,params.h_min_conn); %Seems like smaller neighborhood works better?
@@ -406,7 +460,7 @@ disp(['Started frame: ',num2str(t)])
 
             %Now place the imgLabel into the fused BW img back where it
             %came from. 
-            fused_imgLabel(y_range, x_range, z_range ) = imgLabel;
+            fused_imgLabel(y_range, x_range, z_range ) = fused_imgLabel(y_range, x_range, z_range ) + imgLabel;
 
             %Adjust counter. 
             new_objects = new_objects + num_objects;
@@ -445,9 +499,9 @@ disp(['Started frame: ',num2str(t)])
     frame_obj = [];
     %Add pixel list/centroid for each region to frame_obj
     counter = 1;
+    rg_all=[];
     %Empty BW. 
     BW = zeros(size(BW));
-    rg_all=[];
     for i = 1:length(stats)
             if (length(stats(i).PixelIdxList) < AbsMinVol)
                 continue
@@ -481,7 +535,10 @@ disp(['Started frame: ',num2str(t)])
             mkdir(exp_info.nuc_seg_dir)
         end
         parsave([exp_info.nuc_seg_dir,fname],frame_obj)
-        disp(['Finished frame:     ',num2str(t)])
+        if exist('disp_str','var'); clearString(disp_str); end
+        disp_str = ['Finished frame:     ',num2str(t)];
+        disp(disp_str)
+        
 end
 
 
@@ -493,4 +550,18 @@ catch
     %For large files...
     save(fname, 'frame_obj','-v7.3');
 end
+end
+
+
+%% Plotting text over image
+function    plot_liar_text( stats, liar_list )
+
+delete(findobj(gca,'Type','text'))
+hold on
+for i = 1:length(liar_list)
+    ctr = stats( liar_list(i) ).Centroid;
+    text(ctr(1),ctr(2),num2str( liar_list(i)),'color','g')
+end
+hold off
+
 end

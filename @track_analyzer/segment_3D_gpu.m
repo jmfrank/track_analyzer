@@ -43,7 +43,7 @@ if(step.debug)
 end  
 
 %% Generate im_info structure
-    ZSlicesinStack = obj.exp_info.z_planes;
+    ZSlicesinStack = reader.getSizeT;
 
     image_bits     = reader.getBitsPerPixel;   
     
@@ -213,8 +213,6 @@ disp(['Started frame: ',num2str(t)])
     end
     
     disp('start filtering')
-    
-    %Start timing.
     tic
     
     %Speed up using gpuArrays. 
@@ -410,13 +408,11 @@ disp(['Started frame: ',num2str(t)])
     volumes = [stats.Area]';   
     liar_list = find( volumes > AbsMaxVol);
     
-        %Plot liar tex
-        if(step.debug)
-            plot_liar_text( stats, liar_list );
-        end
-        
-        
-        
+    %Plot liar tex
+    if(step.debug)
+        plot_liar_text( stats, liar_list );
+    end
+    
     %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF. 
     if( step.watershed)
         disp('Starting watershed')
@@ -469,7 +465,6 @@ disp(['Started frame: ',num2str(t)])
             mask = imextendedmin(imgDist,params.h_min_depth,params.h_min_conn); %Seems like smaller neighborhood works better?
             imgDist = imimposemin(imgDist,mask);
             imgDist(~sub_bw) = -inf;
-                       %imgDist(~sub_bw) = inf;
 
             
             %Perform marked watershed
@@ -567,7 +562,9 @@ disp(['Started frame: ',num2str(t)])
             mkdir(exp_info.nuc_seg_dir)
         end
         parsave([exp_info.nuc_seg_dir,fname],frame_obj)
-        disp(['Finished frame:     ',num2str(t)])
+        if exist('disp_str','var'); clearString(disp_str); end
+        disp_str = ['Finished frame:     ',num2str(t)];
+        disp(disp_str)
 end
 
 
@@ -583,7 +580,7 @@ end
 end
 
 
-%Plotting text over image
+%% Plotting text over image
 function    plot_liar_text( stats, liar_list )
 
 delete(findobj(gca,'Type','text'))
