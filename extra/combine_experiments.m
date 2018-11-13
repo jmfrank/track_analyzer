@@ -10,7 +10,7 @@ delT = 0;
 
 %Loop over exp_ids
 for i = 1:length(info.exp_id)
-    
+    info.exp_id(i)
     this_info.csv_file = info.csv_file;
     this_info.exp_id = info.exp_id(i);
     
