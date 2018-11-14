@@ -275,7 +275,7 @@ disp(['Started frame: ',num2str(t)])
 
     if(step.debug)
         figure(10)
-        imshow3D_filter(J,prctile(J(:),params.thresh_start_pct(t)));
+        imshow3D_filter(J,prctile(J(:),params.percentile(t)));
     end 
 
     %% Different ways to determine threshold. 
@@ -554,7 +554,6 @@ disp(['Started frame: ',num2str(t)])
             frame_obj.centroids{counter}    = stats(i).Centroid;
             
             counter = counter + 1;
-            
     end
         %Trace boundaries. 
         C = bwboundaries(BW);
