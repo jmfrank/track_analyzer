@@ -22,7 +22,7 @@ function varargout = TOOL_BOX(varargin)
 
 % Edit the above text to modify the response to help TOOL_BOX
 
-% Last Modified by GUIDE v2.5 09-Nov-2018 17:48:40
+% Last Modified by GUIDE v2.5 13-Nov-2018 23:19:24
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -674,6 +674,3 @@ H=findobj(0,'Tag','Main');
 g = guidata(H);
 g.reset_flags();
 drawnow;
-
-
-

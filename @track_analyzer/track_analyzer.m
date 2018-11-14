@@ -168,30 +168,37 @@ classdef track_analyzer
             end
         end
         
-        %Get nuc_cyto data for a specific track. Can specify channel. 
-        function data = get_track_data(obj, idx, C)
-        
-            data_ids = obj.tracks{idx}(:,5);
-
-            if nargin==3
-                channel=C;
+        %Determine the default data channel. 
+        function channel = findchannel(obj)
+            %Check the structure.
+            if isfield( obj.nuc_cyto_data, 'data')
+                channel='data';
+            elseif isfield( obj.nuc_cyto_data,'channel_01')
+                channel='channel_01';
             else
-                %Check the structure.
-                if isfield( obj.nuc_cyto_data,'nuc_mean')
-                    
-                    data = obj.nuc_cyto_data( data_ids );
-
-                else
-                    if isfield( obj.nuc_cyto_data, 'data')
-                        channel='data';
-                    else
-                        channel='channel_01';
-                    end
-                    data = obj.nuc_cyto_data.(channel)( data_ids );
-                end
+                channel=[];
             end
-            
+        end
         
+        %Get nuc_cyto data for a specific track. Can specify channel. 
+        function data = get_track_data(obj, idx, varargin)
+        
+            p = inputParser;
+            p.addParameter('channel',obj.findchannel,@isstring);
+            p.addParameter('tracks',obj.tracks,@iscell);
+            p.parse(varargin{:});
+           
+            tracks = p.Results.tracks;
+            channel = p.Results.channel;
+            
+            data_ids = tracks{idx}(:,end);
+            if isempty(channel)
+                data = obj.nuc_cyto_data(data_ids);
+            else
+                data = obj.nuc_cyto_data.(channel)( data_ids );
+            end
+
+
         end
         
         %Return all cell contours. 

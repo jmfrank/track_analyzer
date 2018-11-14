@@ -2,7 +2,7 @@
 % raw image and plots Track id and detected nascent spots. 
 
 % This is based off imshow3D. 
-function viewer(obj, step,tracks)
+function viewer(obj, step, varargin)
 
 
 if nargin<2
@@ -30,6 +30,12 @@ else
     states.spots=step.spots;
 end
 
+%Parse other inputs. 
+%Input parsing. 
+p = inputParser;
+p.addParameter('tracks',obj.tracks,@iscell);
+p.parse(varargin{:});
+tracks = p.Results.tracks;
 
 %% Display cell contours
 if(~isfield(step,'cells'))
@@ -223,35 +229,26 @@ end
 %Define some variables
 T = size(frame2img,1); 
 
-%Tracks_curr is currently used tracks. 
-if nargin >3
-    tracks_curr =tracks;
-else
-    tracks_curr = obj.tracks;
-end
-
 %To save time in plotting, make a reference matrix to tell us which tracks
 %are part of which frame. While looping, also fill out cell_sel data. 
-track_matrix = zeros(length(tracks_curr),T);
-track_starts = zeros(length(tracks_curr),1);
+track_matrix = zeros(length(tracks),T);
+track_starts = zeros(length(tracks),1);
 max_cell_counts_per_frame=zeros(T,1);
-for i = 1:length(tracks_curr)
-    ts = tracks_curr{i}(:,1);
-    cell_ids = tracks_curr{i}(:,2);
+for i = 1:length(tracks)
+    ts = tracks{i}(:,1);
+    cell_ids = tracks{i}(:,2);
     track_matrix(i,ts) = cell_ids';
     track_starts(i) = ts(1);
 end
 
-
 %Initiate selection vector for cell tracks. 
-track_sel_vec = ones(size(tracks_curr));
+track_sel_vec = ones(size(tracks));
 %Initiate selection vector for spots. 
 spot_sel_vec = ones(size(obj.results));
 
 %Cell selection matrix. 1 means active, 0s means inactive. 
 cell_sel_mat = false(size(track_matrix));
 cell_sel_mat( track_matrix > 0 ) = 1;
-
 
 %Look for existing flags. 
 try
@@ -264,21 +261,20 @@ end
 if isfield(obj.exp_info,'groups')
     if isempty(obj.exp_info.groups(1).group_id)
         groups = group_structure(1);
-        group_sel_vec = zeros(size(tracks_curr));
+        group_sel_vec = zeros(size(tracks));
     else
-        group_sel_vec = zeros(size(tracks_curr));
+        group_sel_vec = zeros(size(tracks));
         groups = obj.exp_info.groups;
         %Get all tracks part of groups
         for i = 1:length(groups)
-            tracks = groups(i).cell_tracks;
-            group_sel_vec(tracks) = groups(i).group_id;
+            gtracks = groups(i).cell_tracks;
+            group_sel_vec(gtracks) = groups(i).group_id;
         end
     end
 else
     groups = group_structure(1);
-    group_sel_vec = zeros(size(tracks_curr));
+    group_sel_vec = zeros(size(tracks));
 end
-
 
 %Colors used for on and off. 
 c_vec = [1,0,0; 0,1,0];
@@ -683,7 +679,7 @@ DrawSpots
         off_selection = ~(track_matrix(:,t) > 0); 
         
         %Update positions for any object on this frame. 
-        POS = cellfun(@(x) x(find(x(:,1)==t),3:4)+shift_vec,tracks_curr,'UniformOutput',0);
+        POS = cellfun(@(x) x(find(x(:,1)==t),3:4)+shift_vec,tracks,'UniformOutput',0);
         [all_textH(find( track_matrix(:,t) > 0 )).Position] = POS{on_selection | on_selection_flagged };
         
         %Update colors. 
@@ -711,7 +707,7 @@ DrawSpots
             
             div_tracks = find( group_sel_vec > 0 & track_matrix(:,t)' > 0 );                            
             for i = div_tracks
-                this_track = tracks_curr{i};
+                this_track = tracks{i};
                 id = t - track_starts(i) + 1;
                 POS = this_track(id,3:4);
                 c = find(U==group_sel_vec(i))-1;
@@ -725,7 +721,7 @@ DrawSpots
         if states.plot_data
             %Update the indicator
             h = getappdata(0,'plot_time_indicator');
-            if ~isvalid(h(1))
+            if isempty(h)
                 return
             end
             plot_signal = getappdata(0,'plot_signal');
@@ -898,9 +894,10 @@ DrawSpots
             %data_plot.Position =[main_pos(1) main_pos(2)-0.3*screen(4) 0.2*screen(3) 0.2*screen(4)];
         
             
-            this_track = tracks_curr{ track_id };
-            data =obj.get_track_data( track_id );
+            this_track = tracks{ track_id };
+            data =obj.get_track_data( track_id,'tracks',tracks );
             sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
+            sig = [data.nuc_area]';
             title(['Track: ',num2str(track_id)]);
             %Plot the trace. 
             plot(this_track(:,1),sig,'-*','linewidth',4,'color','k');
@@ -909,7 +906,7 @@ DrawSpots
             curr_idx = this_track(:,1)==t;
 
             box off
-            ylim([0.5,2])
+            %ylim([0.5,2])
             yvals=ylim;
             line_color=[148,47,142]./255;
             plot_time_indicator(1) = plot([t,t],yvals,'-','linewidth',5,'color',[line_color,0.6]);
@@ -1045,7 +1042,7 @@ DrawSpots
         if isfield(step,'selected_tracks')
             track_ids=step.selected_tracks;
         else
-            track_ids = [1:length(obj.tracks)];
+            track_ids = [1:length(tracks)];
         end
         
         %Find union of selected tracks and track_matrix data
@@ -1057,13 +1054,14 @@ DrawSpots
             %Find the index in cells. 
             for p = 1:length(on_tracks)
                 
-                frames = obj.tracks{on_tracks(p)}(:,1);
-                cell_id = obj.tracks{on_tracks(p)}(frames==t,2);
+                frames = tracks{on_tracks(p)}(:,1);
+                cell_id = tracks{on_tracks(p)}(frames==t,2);
                 
                 %Plot contour. 
                 line_color=[148,47,142]./255;
                 %line_color=[113,191,110]./255;
                 %line_color=[0,0,0];
+                
                 plot(cells{t}{cell_id}(:,1),cells{t}{cell_id}(:,2),':','linewidth',6,'color',[line_color,0.9]);
             end
             
