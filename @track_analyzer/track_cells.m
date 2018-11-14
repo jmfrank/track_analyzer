@@ -27,12 +27,13 @@ debug = 0;
 %% Look for flagged cells. 
 if isfield( obj.exp_info,'flagged')
     
-    flagger=1;
     flags = obj.exp_info.flagged.cells;
-    
+    if isempty(flags)
+        flags=[0,0];
+    end
 else
     
-    flagger=0;
+    
     flags = [0,0]; %<<< dummy variable
     
 end
@@ -197,7 +198,7 @@ track_counter=0;
     
     %Remove references to flagged tracks. Flagged cells is still relevant? 
     try
-        obj.exp_info = rmfield(obj.exp_info.flagged,'tracks');
+        obj.exp_info.flagged = rmfield(obj.exp_info.flagged,'tracks');
     end
     
     if(debug);set(gca,'Ydir','reverse');end

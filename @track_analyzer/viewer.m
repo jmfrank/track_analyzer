@@ -236,7 +236,6 @@ track_matrix = zeros(length(tracks_curr),T);
 track_starts = zeros(length(tracks_curr),1);
 max_cell_counts_per_frame=zeros(T,1);
 for i = 1:length(tracks_curr)
-    
     ts = tracks_curr{i}(:,1);
     cell_ids = tracks_curr{i}(:,2);
     track_matrix(i,ts) = cell_ids';
@@ -453,7 +452,8 @@ set(MAIN,'ResizeFcn', @figureResized)
 %Run track/spot drawing. Needs to be after buttondown Fcn set on Main
 %because text are children of Main? 
 DrawTracks
-
+DrawCells(states)
+DrawSpots
 %% GUI Functions. 
 % -=< Reset flags matrix >=-
     function reset_flags()
@@ -478,6 +478,9 @@ DrawTracks
             flagged.spots=[];
         end
         setappdata(0,'flagged',flagged);
+    DrawTracks
+    DrawCells(states)
+    DrawSpots  
     end
 
 

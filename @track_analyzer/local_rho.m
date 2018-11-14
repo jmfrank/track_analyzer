@@ -44,7 +44,7 @@ for i = 1:length(F)
         
         %Now see how many centroids fit in dilated mask. 
         sel = [1:n_cells] ~= c;
-        px = sub2ind(BW,centroids(sel,2),centroids(sel,1));
+        px = sub2ind(size(BW),centroids(sel,2),centroids(sel,1));
         K = BW;
         K(px) = 1;
         

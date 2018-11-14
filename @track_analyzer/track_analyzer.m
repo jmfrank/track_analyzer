@@ -83,10 +83,22 @@ classdef track_analyzer
             
         end
         
+        %Clear out cell / track flags. 
+        function obj = clear_flags(obj)
+            
+            try 
+                obj.exp_info = rmfield(obj.exp_info,'flagged');
+            catch
+                disp('No flags found.')
+            end
+        end
+        
+        
         %Update the exp_info
         function obj = update_exp_info(obj, exp_info )
             
-            %Check if combined experiment. 
+            %Check if combined experiment, regenerate paths to segmentation
+            %files and image files. 
             if isfield(obj.exp_info,'combined_experiments')
                 
                 %Simple replacment. 
@@ -187,7 +199,7 @@ classdef track_analyzer
             %Load frame obj. 
             seg_files = obj.get_frame_files;
             %Loop and load. 
-            disp()
+            
             cells= cell(length(seg_files),1);
             disp_str = '';
             for i=1:length(seg_files)
@@ -204,7 +216,7 @@ classdef track_analyzer
                         cells{i} = [];
                     end
                 end
-                clearString(disp_str);
+                if exist(disp_str,'var'); clearString(disp_str); end;
                 disp_str=['loading frame ',num2str(i)];
                 disp(disp_str);
             end          

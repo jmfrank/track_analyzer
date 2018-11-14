@@ -33,7 +33,4 @@ end
 %Run update function. 
 track_obj = track_obj.update_exp_info(exp_info);
 
-
-
-
 end
