@@ -105,6 +105,10 @@ end
 %Add params to exp_info.
 obj.exp_info.seg_params=params;
 obj.exp_info.seg_steps=step;
+%Always clear out flags in after new segmentation. 
+obj = obj.clear_flags;
+obj.save;%Auto-save. 
+
 obj.save;
 
 

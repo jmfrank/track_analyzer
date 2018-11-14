@@ -92,6 +92,13 @@ end
 
 %Close reader at very end. 
 reader.close();
+%Add params to exp_info.
+obj.exp_info.seg_params=params;
+obj.exp_info.seg_steps=step;
+%Always clear out flags in after new segmentation. 
+obj = obj.clear_flags;
+obj.save;%Auto-save. 
+
 end
 
 %% Inner function to run 
@@ -553,18 +560,32 @@ disp(['Started frame: ',num2str(t)])
             counter = counter + 1;
     end
 
-        %Add final binarized image to frame_obj for safe keeping.
-        frame_obj.BW = BW;
+    %Get contours. Estimate from 3D projection. 
+    cBW = max( BW, [], 3);
+    C = bwboundaries(cBW);
+    if ~isempty(C)
+        C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
+        c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
+        %Match centroids. 
+        fobj_ctrs = cat(1,frame_obj.centroids{:});
+        D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
+        [~,idx] = min(D);
+        frame_obj.contours=C( idx );
+    end
 
-        %Save frame_obj as done before. 
-        fname = ['frame_',sprintf('%04d',t),'.mat'];
-        if(~exist(exp_info.nuc_seg_dir,'dir'))
-            mkdir(exp_info.nuc_seg_dir)
-        end
-        parsave([exp_info.nuc_seg_dir,fname],frame_obj)
-        if exist('disp_str','var'); clearString(disp_str); end
-        disp_str = ['Finished frame:     ',num2str(t)];
-        disp(disp_str)
+    %Add final binarized image to frame_obj for safe keeping.
+    frame_obj.BW = BW;
+
+
+    %Save frame_obj as done before. 
+    fname = ['frame_',sprintf('%04d',t),'.mat'];
+    if(~exist(exp_info.nuc_seg_dir,'dir'))
+        mkdir(exp_info.nuc_seg_dir)
+    end
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj)
+    if exist('disp_str','var'); clearString(disp_str); end
+    disp_str = ['Finished frame:     ',num2str(t)];
+    disp(disp_str)
 end
 
 

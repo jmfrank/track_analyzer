@@ -15,6 +15,8 @@
 function obj = segment_3D(obj, params, step)
 
 
+step = default_step(step);
+params = default_params(params);
 
 %% Pre-processing using bio-formats. 
 
@@ -34,7 +36,7 @@ if(step.debug)
 end  
 
 %% Generate im_info structure
-    ZSlicesinStack = reader.getSizeT;
+    ZSlicesinStack = reader.getSizeZ;
 
     image_bits     = reader.getBitsPerPixel;   
     
@@ -83,6 +85,13 @@ end
 
 %Close reader at very end. 
 reader.close();
+%Add params to exp_info.
+obj.exp_info.seg_params=params;
+obj.exp_info.seg_steps=step;
+%Always clear out flags in after new segmentation. 
+obj = obj.clear_flags;
+obj.save;%Auto-save. 
+
 end
 
 %% Inner function to run 
@@ -386,7 +395,7 @@ disp(['Started frame: ',num2str(t)])
     end
     
     %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF.
-    if( step.watershed3D)
+    if( step.watershed)
         disp('Starting watershed')
         tic
         
@@ -397,7 +406,7 @@ disp(['Started frame: ',num2str(t)])
         new_objects = 0;
 
         %Empty fused object imglabel
-        fused_imgLabel = zeros(size(BW)); 
+        fused_imgLabel = uint8(zeros(size(BW))); 
 
         %Loop over liars
         for i = 1:length(liar_list)
@@ -515,7 +524,7 @@ disp(['Started frame: ',num2str(t)])
             rg = sqrt(1/length(y).*sum(sum( (pos-com).^2,2)));
             rg_all = [rg_all, rg];
 
-            if(rg > params.rg_threshold)
+            if(step.rg_threshold & rg > params.rg_threshold)
                 continue
             end
             
@@ -524,6 +533,19 @@ disp(['Started frame: ',num2str(t)])
             frame_obj.PixelIdxList{counter} = stats(i).PixelIdxList;
             frame_obj.centroids{counter}    = stats(i).Centroid;
             counter = counter + 1;
+    end
+    
+    %Get contours. Estimate from 3D projection. 
+    cBW = max( BW, [], 3);
+    C = bwboundaries(cBW);
+    if ~isempty(C)
+        C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
+        c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
+        %Match centroids. 
+        fobj_ctrs = cat(1,frame_obj.centroids{:});
+        D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
+        [~,idx] = min(D);
+        frame_obj.contours=C( idx );
     end
 
         %Add final binarized image to frame_obj for save keeping
