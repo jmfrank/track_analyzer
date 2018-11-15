@@ -275,7 +275,17 @@ disp(['Started frame: ',num2str(t)])
 
     if(step.debug)
         figure(10)
-        imshow3D_filter(J,prctile(J(:),params.percentile(t)));
+        if isfield(params,'percentile')
+            try
+                K=params.percentile(t);
+            catch
+                K=params.percentile;
+            end
+        else
+            K=90;
+        end
+        imshow3D_filter(J,prctile(J(:),K));
+        
     end 
 
     %% Different ways to determine threshold. 

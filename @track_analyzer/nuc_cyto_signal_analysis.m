@@ -10,7 +10,7 @@
 %nuclear intensity for the pre-calculated mask. Then take that plane +/- a
 %few other planes to do MIP and nuc/cyto calculations
 
-function obj = nuc_cyto_signal_analysis(obj, params, step, force_frame)
+function obj = nuc_cyto_signal_analysis(obj, params, step, force_frames)
 
 
 params = default_params(params);
@@ -33,10 +33,9 @@ T = obj.exp_info.t_frames;
 if nargin < 4
     frames = 1:T;
 else
-    frames = force_frame;
+    frames = force_frames;
 end
 
-%UPDATED: USING BIOFORMATS READER
 %Generate reader. FOR NOW, assume we are looking in series 1. 
 reader = bfGetReader(obj.exp_info.img_file);
 series = 1;
@@ -73,45 +72,30 @@ for t = frames
         
     end
     
+    %Clear out bad values (stitching can create 0 valued pixels at edge). 
+    zSEL = sig_img == 0;
+    sig_img(zSEL) = NaN;
+    zSEL = msk_img == 0;
+    msk_img(zSEL) = NaN;
+   
     %Loop over detected cells
-    try
-        n_cells = length(frame_obj.refined_cells);
-        seg_type = 'refined';
-    catch
-        if(~isfield(frame_obj,'PixelIdxList'))
-            continue
-        end
-        n_cells = length(frame_obj.PixelIdxList);
-        seg_type = 'Px';
-    end
-    
+    n_cells = length(frame_obj.PixelIdxList);
+            
     %Create empty structure for nuclear / cytoplasm calculations
     data = gen_data_struct( n_cells );
         
     %Loop over cells. 
     for j = 1:n_cells
         
-        %Get a 2D mask of this cell, depending on segmentation format....
-        switch seg_type
-            
-            %DEPRECATED.....
-            case 'refined'
-                %Contour
-                x     = frame_obj.refined_cells{j}(:,1);
-                y     = frame_obj.refined_cells{j}(:,2);
-                %Get mask of this cell
-                roi_bw_nuc = poly2mask(x,y,size_y,size_x);  
-            %SHOULD ALWAYS use Px. 
-            case 'Px' 
-                BW = zeros(size_y,size_x);
-                px = frame_obj.PixelIdxList{j};
-                BW(px) = 1;
-                %Get pixel coordinates. 
-                [px_Y,px_X] = ind2sub([size_y,size_x],px);
-                
-                %Create mask. 
-                roi_bw_nuc = logical(BW);
-        end
+        %Get a 2D mask of this cell....
+        BW = zeros(size_y,size_x);
+        px = frame_obj.PixelIdxList{j};
+        BW(px) = 1;
+        %Get pixel coordinates. 
+        [px_Y,px_X] = ind2sub([size_y,size_x],px);
+
+        %Create mask. 
+        roi_bw_nuc = logical(BW);
         
         %% Figure out optimal z-section. 
         %Get sub_img of nucleus. 
@@ -139,8 +123,6 @@ for t = frames
             z_planes = z_planes(sel);
         end
         
-        
-
         %% Analyze the signal channel. 
         %Look at sub-region of image containing this cell. Need to exapnd
         %to include outer boundary. 
@@ -171,7 +153,15 @@ for t = frames
         
         %Use intensity of DNA to minimize nucleolar regions.
         if step.nuc_thresh
-            nuc_plane = msk_img(:,:,idx);
+
+            %Which img do we use? 
+            if strcmp(params.nuc_thresh_channel,'self')
+                nuc_plane=sig_img(:,:,idx);
+            elseif stcmp(params.nuc_thresh_channel,'seg_channel')
+                nuc_plane = msk_img(:,:,idx);
+            end
+            
+            %Set non-nuclear region to NaN. 
             nuc_plane(~roi_bw_nuc) = NaN;
             T = prctile(nuc_plane(:),params.nuc_prctile);
             nuc_mask = nuc_plane >= T;
@@ -196,7 +186,7 @@ for t = frames
     toc
 end
 
-if(debug);hold off;end;
+if(debug);hold off;end
 
 obj.nuc_cyto_calc = true;
 

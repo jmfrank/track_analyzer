@@ -70,14 +70,19 @@ end
 
 
 %% DEBUGGING code for plotting contours. 
-% c = contourc(double(roi_inner),[0.5,0.5]);
-% C = C2xyz(c);
-% newFigure(18)
-% imshow3D(img);    
-%     hold on
-% 
-% for i = 1:length(C)
-%     plot(C{i}(:,1),C{i}(:,2),'linewidth',2)
-% end
+debug=0;
+if debug 
+    c = contourc(double(max(roi_inner,[],3)),[0.5,0.5]);
+    C = C2xyz(c);
+    newFigure(18)
+    imshow3D(img);    
+        hold on
+
+    for i = 1:length(C)
+        plot(C{i}(:,1),C{i}(:,2),'linewidth',2)
+    end
+end
+
+
 
 end

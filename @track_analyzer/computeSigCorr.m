@@ -192,7 +192,7 @@ for i = 1 : n_tracks
             vcorrelation = [0,0,0,0; vcorrelation];
             
             % Store in object field
-            obj.sigcorr{i} = vcorrelation;
+            obj.sigcorr{this_track} = vcorrelation;
             
     end
        

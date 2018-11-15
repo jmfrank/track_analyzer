@@ -897,7 +897,7 @@ DrawSpots
             this_track = tracks{ track_id };
             data =obj.get_track_data( track_id,'tracks',tracks );
             sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
-            sig = [data.nuc_area]';
+            %sig = [data.nuc_area]';
             title(['Track: ',num2str(track_id)]);
             %Plot the trace. 
             plot(this_track(:,1),sig,'-*','linewidth',4,'color','k');

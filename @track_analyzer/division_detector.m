@@ -1,14 +1,18 @@
 %% Division detector: uses nuclear area time-trace to detect when divisions happen. 
 
-%Breaks up track into multiple segments if division occurs. Uses window
-%parameter and area-change threshold to see if there's a rapid change in
-%nuclear area. 
-
+% Breaks up track into multiple segments if division occurs. Uses window
+% parameter and area-change threshold to see if there's a rapid change in
+% nuclear area.
+% 
 % Should be able to handle multiple divisions per track. Uses peakfinding
-% to look for rapid negative chances in nuclear area 
+% to look for rapid negative chances in nuclear area
 
-function split_tracks = division_detector( obj, params, step )
+function [split_tracks, src_tracks] = division_detector( obj, params, step )
 
+if nargin < 3
+    step = struct;
+    step = default_step(step);
+end
 
 %Tracks
 tracks = obj.tracks;
@@ -18,9 +22,11 @@ n_tracks = length(tracks);
 c=0;
 %Output
 split_tracks = {};
+src_tracks=[];
 %Loop over tracks. 
 for i = 1:length(tracks)
-
+    
+    
     %This track. 
     track = obj.tracks{i};
     these_frames = track(:,1);
@@ -48,90 +54,66 @@ for i = 1:length(tracks)
    
     %Loop over vals. Break up tracks. 
     start_frame=1;
-    for n = 1:N
-        
-        %Check startframe
-        if start_frame >= size(track,1)
-            break
+    
+    if N>0
+
+        for n = 1:N
+
+            %Check startframe
+            if start_frame >= size(track,1)
+                break
+            end
+
+            idx = loc(n);
+
+            %Get frame vals for this region. 
+            frame_vals = [bi(idx):bi(idx)+lengths(idx)-1]+params.division_window;
+
+            %Find frame of minimum area.
+            [~,min_idx] = min( area_trace(frame_vals) );
+
+            %Define the division event frame (minimum area)
+            division_event_frame = frame_vals(min_idx);
+
+            %Estimate segment end frame. 
+            end_frame = division_event_frame - params.cut_frames_before;
+
+            %Check if that end frame after start_frame. 
+            if end_frame > start_frame
+               %Counter
+               c=c+1;
+               split_tracks{c} = track(start_frame:end_frame,:);
+               src_tracks(c) = i;
+               %Move start_frame. 
+               start_frame = division_event_frame + params.cut_frames_after;
+               
+            else
+                %Skip this one. 
+                start_frame=division_event_frame+params.cut_frames_after;
+                continue
+            end      
+        end
+
+        %Now clean up last segment. 
+        if start_frame < size(track,1)
+            end_frame = size(track,1);
+            c=c+1;
+            split_tracks{c} = track(start_frame:end_frame,:);
+            src_tracks(c) = i;
         end
         
-        idx = loc(n);
-        
-        %Get frame vals for this region. 
-        frame_vals = [bi(idx):bi(idx)+lengths(idx)-1]+params.division_window;
-        
-        %Find frame of minimum area.
-        [~,min_idx] = min( area_trace(frame_vals) );
-        
-        %Define the division event frame (minimum area)
-        division_event_frame = frame_vals(min_idx);
-        
-        %Estimate segment end frame. 
-        end_frame = division_event_frame - params.cut_frames_before;
-        
-        %Check if that end frame after start_frame. 
-        if end_frame > start_frame
-           %Counter
-           c=c+1;
-           split_tracks{c} = track(start_frame:end_frame,:);
-           %Move start_frame. 
-           start_frame = division_event_frame + params.cut_frames_after;
-        else
-            %Skip this one. 
-            start_frame=division_event_frame+params.cut_frames_after;
-            continue
-        end      
-    end
-    
-    %Now clean up last segment. 
-    if start_frame < size(track,1)
-        end_frame = size(track,1);
-        c=c+1;
-        split_tracks{c} = track(start_frame:end_frame,:);
-    end
-    
-   
-   if step.debug
-       newFigure(2)
-       plot(area_trace,'linewidth',2)
-   end
-   
-   %Find when del_area above threshold. 
-   sel = del_area <= params.del_area_threshold;
-   
-   %If multiple potential drops take point of minimum area
-   if( sum(sel) >= 1 )
-       %Drop frames
-       drop_frames = find(sel);
-       
-       %Look at the time of fastest area change. 
-       min_frames  = drop_frames + params.division_window;
-       %Areas at the drops
-       these_areas = area_trace( min_frames );
-       %Take minimum. 8
-       [~,min_idx] = min( these_areas );
-       %Division event frame. Time of minimum area. 
-       division_event_frame = min_frames(min_idx);
-       %Cut the track off a few frames before drop in nuc-area. Defined by
-       %params.cut_frames_before. 
-       end_frame = division_event_frame - params.cut_frames_before;
-       %Make sure track exists at this time. 
-
-
-       %Now Check if the track exists a few frames after division. This
-       %delay should be a bit longer...?
-       start_idx = division_event_frame + params.cut_frames_after;
-       
-       if start_idx < size(track,1)
-          c=c+1; 
-          split_tracks{c} = track(start_idx:end,:);
-       end
-   else
+        if step.debug
+           newFigure(2)
+           plot(area_trace,'linewidth',2)
+        end
+            
+    else
        %No drop, don't chop track. 
        c=c+1;
-       split_tracks{c} = track;
-   end
-   c
+       split_tracks{c} = track;        
+       src_tracks(c) = i;
+    end
+   
 end
 
 

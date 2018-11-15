@@ -181,17 +181,32 @@ classdef track_analyzer
         end
         
         %Get nuc_cyto data for a specific track. Can specify channel. 
-        function data = get_track_data(obj, idx, varargin)
-        
-            p = inputParser;
-            p.addParameter('channel',obj.findchannel,@isstring);
-            p.addParameter('tracks',obj.tracks,@iscell);
-            p.parse(varargin{:});
-           
-            tracks = p.Results.tracks;
-            channel = p.Results.channel;
+        function data = get_track_data(obj, varargin)
             
-            data_ids = tracks{idx}(:,end);
+            if length(varargin)==1
+                idx = varargin{1};
+                channel=obj.findchannel;
+                track=[];
+            else
+
+                p = inputParser;
+                p.addParameter('idx',[],@isinteger);
+                p.addParameter('channel',obj.findchannel,@isstring);
+                p.addParameter('track',[],@iscell);
+                p.parse(varargin{:});
+
+                idx = p.Results.idx;
+                track = p.Results.track;
+                channel = p.Results.channel;
+            end
+            
+            
+            if ~isempty(idx)
+                data_ids = obj.tracks{idx}(:,end);
+            elseif ~isempty(track)
+                data_ids = track{1}(:,end);
+            end
+            
             if isempty(channel)
                 data = obj.nuc_cyto_data(data_ids);
             else
@@ -227,6 +242,14 @@ classdef track_analyzer
                 disp_str=['loading frame ',num2str(i)];
                 disp(disp_str);
             end          
+        end
+        
+        % Generate an empty structure for keeping track of nuclear and cytoplasmic signals
+        function data = gen_data_struct( N )
+
+            %Fields
+            data(N) = struct('nuc_mean',[],'cyto_mean',[],'local_rho',[],'cell_id',[],'nuc_med',[],'cyto_med',[],'nuc_area',[]);
+
         end
         
         %Return intensity traces of spot tracks
