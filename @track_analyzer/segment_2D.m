@@ -101,7 +101,8 @@ end
             inner_function( exp_info, Z_cell{t},params,step,t,reader)
         end
     end
-    
+disp(['Max frames: ',num2str(T)]);
+
 %Add params to exp_info.
 obj.exp_info.seg_params=params;
 obj.exp_info.seg_steps=step;
@@ -293,10 +294,10 @@ disp(['Started frame: ',num2str(t)])
     %Iterative local thresholding. 
     if step.iterative_thresholding
         
-        if length(params.thresh_start_pct)>1
-            p_val = params.thresh_start_pct(t);
+        if length(params.percentile)>1
+            p_val = params.percentile(t);
         else
-            p_val = params.thresh_start_pct;
+            p_val = params.percentile;
         end
 
         %Enforce more criteria for thresholing cells. 

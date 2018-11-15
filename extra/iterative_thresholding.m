@@ -111,7 +111,7 @@ while go
     vals = norm_data(img(px));
     P =  smooth(prctile(vals,p_range),12);
     dP = diff(P);
-    [~,LOCS] = findpeaks(dP,p_range(2:end),'MinPeakProminence',0.003);
+    [~,LOCS] = findpeaks(dP,p_range(2:end),'MinPeakProminence',0.001);
     these_pks = find(LOCS > params.peak_range(1) & LOCS < params.peak_range(end));
 
     %Check peaks. 
