@@ -10,7 +10,7 @@ function BW = iterative_thresholding(I, J, real_bg, params )
 
 
 %For now, just hard code the peak range 
-params.peak_range=[5:85];
+params.peak_range=[5:88];
 
 %First find local maxima of I. 
 BWmax = imextendedmax(I,params.Hdepth);
@@ -69,15 +69,23 @@ BWclean(px) = 1;
 %Loop over matched blobs. Evalulate histogram, increase threshold until
 %critereum met. 
 BW=false(size(BW));
+%Dilating structural element. Square is faster than disk. 
+params.dilator_size=5;
+dilator = strel('square',params.dilator_size);
 
 for i = 1:length(matched_blobs)
     %Get J values. 
     px = stats_J( matched_blobs(i) ).PixelIdxList;
     
-    %Get xy range. 
-    [Y,X] = ind2sub(size(BW),px);
-    yrange=min(Y):max(Y);
-    xrange=min(X):max(X);
+    %Build mask of this cell. 
+    this_cell_mask= false(size(BW));
+    this_cell_mask(px) = 1;
+    %Dilate a bit. 
+    this_cell_mask = imdilate(this_cell_mask,dilator);
+    %Get range.
+    [Y,X] = find(this_cell_mask);
+    yrange=unique(Y);
+    xrange=unique(X);    
     
     %Sub image of this blob. 
     sub_img = J(yrange,xrange);
@@ -109,21 +117,29 @@ while go
     %Perform analysis. 
     px = img>=thresh;
     vals = norm_data(img(px));
+    %Need to smooth the percentile before taking derivative. 
     P =  smooth(prctile(vals,p_range),12);
-    dP = diff(P);
-    [~,LOCS] = findpeaks(dP,p_range(2:end),'MinPeakProminence',0.001);
+    %Smooth again to remove weak peaks. 
+    dP = smooth(diff(P),20);
+    [~,LOCS,~,PROM] = findpeaks(dP,p_range(2:end),'MinPeakProminence',0.001);
     these_pks = find(LOCS > params.peak_range(1) & LOCS < params.peak_range(end));
-
+    LOCS = LOCS(these_pks);
+    PROM = PROM(these_pks);
+    
     %Check peaks. 
     if isempty(these_pks)
         
         go=0;
         
     else
+        %Find peak of greatest prominance.
+        [~,pk_idx] = max(PROM);
+        
+        pct_val = LOCS(pk_idx);
         
         %Increasing threshold. 
-        thresh = thresh + params.increment;
-        
+        thresh = prctile(img(px),pct_val);
+        go=0;
     end
 
 end
