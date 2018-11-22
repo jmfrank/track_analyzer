@@ -239,6 +239,40 @@ for d = 1:length(div)
     end
 
 
+    %% Make a division track. 
+    %Extract marked time. 
+    mark = div(d).marked_frame;
+
+    %Get all frames for parent/daughter. 
+    parent_frames = cellfun(@(x) x(:,1), obj.tracks( div(d).parent_track_idx ),'uniformoutput',0);
+    daughter_frames = cellfun(@(x) x(:,1), obj.tracks( div(d).daughter_track_idx ),'uniformoutput',0);
+
+    %Time vector wrt to cytokinesis. 
+    frames = unique([cat(1,parent_frames{:});cat(1,daughter_frames{:})]) - mark;
+
+    %State vector for transcription spot. 
+    on_times =[];
+    if ~isempty(div(d).parent_int_tracks)
+        parent_on_times = cellfun(@(x) x(:,1), div(d).parent_int_tracks,'UniformOutput',0);
+        on_times = cat(1,parent_on_times{:});
+    end
+    
+    if ~isempty(div(d).daughter_int_tracks)
+        daughter_on_times = cellfun(@(x) x(:,1), div(d).daughter_int_tracks,'UniformOutput',0);
+        on_times = [on_times;cat(1,daughter_on_times{:})];
+    end
+
+    %Shift wrt to cytokinesis. 
+    on_times = on_times -mark;
+    %Idx on. 
+    [~,idx] = intersect(frames,on_times);
+    state = zeros(size(frames));
+    state(idx) = 1;
+
+    %Make d_track. 
+    div(d).d_track = [frames,state];
+    
+    
 end
 
 

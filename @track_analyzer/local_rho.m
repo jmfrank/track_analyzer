@@ -29,6 +29,10 @@ for i = 1:length(F)
     
     %Centroids. 
     centroids = round( cat(1,frame_obj.centroids{:}));
+    %All centroids in px coordinates.
+    px = sub2ind(size(BW),centroids(:,2),centroids(:,1));
+    K = BW;
+    K(px) = 1;
     
     %Loop over cells. 
     n_cells = length(frame_obj.centroids);
@@ -41,21 +45,22 @@ for i = 1:length(F)
         
         %Dilate. 
         mask = imdilate(mask,SE);
-        
-        %Now see how many centroids fit in dilated mask. 
-        sel = [1:n_cells] ~= c;
-        px = sub2ind(size(BW),centroids(sel,2),centroids(sel,1));
-        K = BW;
-        K(px) = 1;
-        
+                
         %Density. Cells per square-pixels. 
-        data(c).local_rho = sum( K(mask) ) ./ sum( mask );
+        n_cells = sum( K(mask) ) - 1; %Subtract self. 
+        area_px = sum( mask(:));
+        data(c).local_rho =  n_cells / area_px ;
     end
     
     %Append data. 
     frame_obj.(out_field) = data;
     
+    %Save. 
+    save(F{i},'frame_obj');
     
+    if exist('disp_str','var'); clearString(disp_str);end
+    disp_str=['Frame ',num2str(i)];
+    disp(disp_str)  
 end
 
 

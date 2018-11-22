@@ -129,8 +129,8 @@ if(button_state)
     %Turn off other states that conflict. 
     states.group=0;
     states.flag_tracks=0;
-    h(1) = findobj('Tag','CONNECT_BUTTON');
-    h(2) = findobj('Tag','flag_tracks_button');
+    h(1) = handles.CONNECT_BUTTON;
+    h(2) = handles.flag_tracks_button;
     set(h,'BackgroundColor', [1,1,1]);
     set(h,'Value',0);
     
@@ -163,8 +163,8 @@ if(button_state)
     
     states.flag_tracks=0;
     states.flag_cells=0;
-    h(1) = findobj('Tag','flag_tracks_button');
-    h(2) = findobj('Tag','flag_cells_button');
+    h(1) = handles.flag_tracks_button;
+    h(2) = handles.flag_cells_button;
     set(h,'BackgroundColor', [1,1,1]);
     set(h,'Value',0);
 else
@@ -333,7 +333,7 @@ function ADD_GROUP_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-list_handle = findobj('Tag','GroupList');
+list_handle = handles.GroupList;
 
 OG_string = list_handle.String;
 
@@ -519,7 +519,7 @@ function cell_division_mark_button_Callback(hObject, eventdata, handles)
 % This function just marks the current time point. Useful for difining
 % mitotic time line. Fills in marked_frame field of group data. 
 G = getappdata(0,'groups');
-list_handle = findobj('Tag','GroupList');
+list_handle = handles.GroupList;
 curr_entry = list_handle.Value;
 
 %For the selected group, mark the 'division' time as the current time

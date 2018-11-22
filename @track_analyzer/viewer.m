@@ -695,7 +695,7 @@ DrawSpots
         if states.group
             group_sel_vec = getappdata(0,'group_sel_vec');
             U = unique( group_sel_vec );
-            hlist = findobj(0,'Tag','GroupList');
+            hlist = findobj(TOOL,'Tag','GroupList');
             list_string = hlist.String;
             if iscell(list_string)
                 n_colors = length(hlist.String);
@@ -856,7 +856,7 @@ DrawSpots
                
                 %Figure out coloring. 
                 U = unique( group_sel_vec );
-                hlist = findobj(0,'Tag','GroupList');   
+                hlist = findobj(TOOL,'Tag','GroupList');   
                 list_string = hlist.String;
                 if iscell(list_string)
                     n_colors = length(hlist.String);

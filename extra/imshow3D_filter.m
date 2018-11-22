@@ -158,7 +158,7 @@ thresh_val_Pos  = [330 20 45 20];
 %Estimate threshold step size change. 
 vals = Img(:);
 increment = 5* (max(vals)-min(vals))/100;
-if nargin < 1
+if nargin < 2
     initial_thresh = prctile(vals,90);
 end
     
