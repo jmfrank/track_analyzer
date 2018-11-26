@@ -46,62 +46,18 @@ for d = 1:length(div)
     %Check if all tracks occur on/after marked frame (no detectable parent). 
     idx_before = find( first_frame < div_frame );
     
-
     if ~isempty(idx_before)
         
-        %Must be a parent cell. Should be only one index. 
-        if length(idx_before) > 1
-            
-            %Link up manually. Tracks should be exlusive? 
-            all_frames = [];
-            new_parent = [];
-            for k= 1:length(idx_before)
-                these_frames=frames{idx_before(k)};
-                K = intersect(all_frames,these_frames);
-                
-                if isempty(K)
-                    if isempty(all_frames)
-                        new_parent = obj.tracks{idx_before(k)};
-                    else
-                        %Figure out if track goes before or after. 
-                        [~,min_idx] = min( first_frame( idx_before(k), all_frames(1) ));
-                        if min_idx == 1
-                            new_parent = [ obj.tracks{idx_before(k)},new_parent];
-                        elseif min_idx == 2
-                            new_parent = [new_parent; obj.tracks{idx_before(k)}];
-                        end
-                    end
-                else
-                    error('Multi-parents that overlap!');
-                end
-            end
-            
-            div(d).first_parent_frame = new_parent(1,1);
-
-            %SET multi-parent to true
-            multi_parent=1;
-            parent_track_idx = idx_before;
-            
-        %Single parent - easy./ 
-        else
-               	
-                
-            parent_track_idx = track_ids(idx_before);
-
-            %Define the earliest available cell localization 
-            div(d).first_parent_frame = obj.tracks{parent_track_idx}(1,1);
-
-              
-            multi_parent=0;
-            
-        end
+        %Must be a parent cell. Should be only one index.   
+        [~,min_idx] = min( first_frame( idx_before ) );
+        
+        div(d).first_parent_frame = obj.tracks{ track_ids( idx_before(min_idx))}(1,1);
+        parent_track_idx = track_ids(idx_before);
 
     else
         
         %No parent cell available. 
-        parent_track_idx = [];
-        parent_track = [];
-        
+        parent_track_idx = [];        
 
     end
     
@@ -131,7 +87,7 @@ for d = 1:length(div)
         daughter_tracks = obj.tracks( daughter_track_idx );
     else
 
-        warning('more than 2 daughters!');
+        error('more than 2 daughters!');
 
     end
 
@@ -176,7 +132,17 @@ for d = 1:length(div)
         if isempty(parent_int_tracks)
             spots_before=0;
             div(d).parent_last_pulse = [];
+            div(d).parent_int_tracks = [];
         else
+            
+            %Remove points that occurred after mark frame. 
+            for t = 1:length(parent_int_tracks)
+                
+               this_track=parent_int_tracks{t};
+               sel = this_track(:,1) <= div_frame;
+               parent_int_tracks{t} = this_track(sel,:);
+            end
+            
             %Add info to div structure. 
             div(d).parent_int_tracks = parent_int_tracks;
             
@@ -210,6 +176,17 @@ for d = 1:length(div)
             spots_after=0;
             div(d).daughter_first_pulse = [];
         else
+            
+            
+            %Remove points that occurred after mark frame. 
+            for t = 1:length(daughter_int_tracks)
+                
+               this_track=daughter_int_tracks{t};
+               sel = this_track(:,1) > div_frame;
+               daughter_int_tracks{t} = this_track(sel,:);
+            end
+            
+            
             %Add info to div structure. 
             div(d).daughter_int_tracks = daughter_int_tracks;
             
