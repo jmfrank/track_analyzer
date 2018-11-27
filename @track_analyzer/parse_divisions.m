@@ -165,6 +165,9 @@ for d = 1:length(div)
             %Add to structure. 
             div(d).parent_last_pulse = parent_last_pulse;
         end
+    else
+        div(d).parent_int_tracks = [];
+        div(d).parent_last_pulse = [];
     end
     
     % DAUGHTER.
@@ -212,7 +215,9 @@ for d = 1:length(div)
             
         end
     else
+        
         div(d).daughter_first_pulse = [];
+        div(d).daughter_int_tracks  = [];
     end
 
 

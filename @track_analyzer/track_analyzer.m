@@ -188,11 +188,10 @@ classdef track_analyzer
                 channel=obj.findchannel;
                 track=[];
             else
-
                 p = inputParser;
                 p.addParameter('idx',[]);
                 p.addParameter('channel',obj.findchannel,@isstring);
-                p.addParameter('track',[],@iscell);
+                p.addParameter('track',[]);
                 p.parse(varargin{:});
 
                 idx = p.Results.idx;
@@ -200,19 +199,17 @@ classdef track_analyzer
                 channel = p.Results.channel;
             end
             
-            
             if ~isempty(idx)
                 data_ids = obj.tracks{idx}(:,end);
             elseif ~isempty(track)
-                data_ids = track{1}(:,end);
+                data_ids = track(:,end);
             end
-            
+                      
             if isempty(channel)
                 data = obj.nuc_cyto_data(data_ids);
             else
                 data = obj.nuc_cyto_data.(channel)( data_ids );
             end
-
 
         end
         

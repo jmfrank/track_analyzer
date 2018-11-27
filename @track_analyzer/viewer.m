@@ -897,7 +897,7 @@ DrawSpots
         
             
             this_track = tracks{ track_id };
-            data =obj.get_track_data('idx', track_id,'track',tracks );
+            data =obj.get_track_data( 'track', this_track );
             sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
             %sig = [data.nuc_area]';
             title(['Track: ',num2str(track_id)]);
