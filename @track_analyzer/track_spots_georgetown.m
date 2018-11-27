@@ -20,6 +20,7 @@ fits_all = [];
 count = 0;
 for i = 1:length(seg_files)
     load(seg_files{i},'frame_obj');
+    i
     if(~isempty(frame_obj.fit))
         %Position vector. comes as y,x, (z)
         pos = cat(1,frame_obj.fit.pos);

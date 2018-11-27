@@ -4,6 +4,8 @@
 % This is based off imshow3D. 
 function viewer(obj, step, varargin)
 
+%Clear out existing gui data. 
+clear_app_data;
 
 if nargin<2
     step = struct;
@@ -895,7 +897,7 @@ DrawSpots
         
             
             this_track = tracks{ track_id };
-            data =obj.get_track_data( track_id,'tracks',tracks );
+            data =obj.get_track_data('idx', track_id,'track',tracks );
             sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
             %sig = [data.nuc_area]';
             title(['Track: ',num2str(track_id)]);
@@ -1095,7 +1097,20 @@ DrawSpots
 
 end
 
+%% Remove all app data. 
+function clear_app_data()
 
+D = getappdata(0);
+
+fields = fieldnames(D);
+
+    %Loop
+    for d = 1:length(fields)
+
+        rmappdata(0,fields{d});
+    end
+
+end
 
 %% Subfunction for getting the requested image.
 function Img = frame_loader(reader, t, channel_id)

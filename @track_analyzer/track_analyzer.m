@@ -190,7 +190,7 @@ classdef track_analyzer
             else
 
                 p = inputParser;
-                p.addParameter('idx',[],@isinteger);
+                p.addParameter('idx',[]);
                 p.addParameter('channel',obj.findchannel,@isstring);
                 p.addParameter('track',[],@iscell);
                 p.parse(varargin{:});

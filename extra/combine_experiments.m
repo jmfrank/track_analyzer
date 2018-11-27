@@ -19,7 +19,7 @@ for i = 1:length(info.exp_id)
     seg_files = obj.get_frame_files;
     
     time_series = [time_series, delT + obj.exp_info.time_series(1:length(seg_files))];
-    delT = time_series(end) - time_series(end-1);
+    delT = time_series(end) - time_series(end-1) + time_series(end);
     
     file_list = [file_list; seg_files];
     
