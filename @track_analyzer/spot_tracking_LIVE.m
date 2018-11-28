@@ -12,9 +12,9 @@ function obj = spot_tracking_LIVE(obj, params, step, frames)
 
 debug = 0;
 
-
-Z = obj.exp_info.z_planes;
-T = obj.exp_info.t_frames;
+%Generate reader. FOR NOW, assume we are looking in series 1. 
+[reader,X,Y,Z,C,T] = bfGetReader(obj.exp_info.img_file);
+series = 1;
 
 %Figure out if call to function included specific frames. 
 if nargin < 4
@@ -24,10 +24,6 @@ else
 end
 
 frames
-
-%Generate reader. FOR NOW, assume we are looking in series 1. 
-reader = bfGetReader(obj.exp_info.img_file);
-series = 1;
 
 %Get the image size of this series. 
 size_x = reader.getSizeX;
