@@ -578,6 +578,7 @@ disp(['Started frame: ',num2str(t)])
         end
         
         
+        
         %Add final binarized image to frame_obj for save keeping
         frame_obj.BW = BW;
 
