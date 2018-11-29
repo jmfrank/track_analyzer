@@ -87,12 +87,25 @@ for i = 1:length(matched_blobs)
     yrange=unique(Y);
     xrange=unique(X);    
     
+    %mask. 
+    mask = false(size(BW));
+    mask(yrange,xrange) = 1;
+    %Find pixels part of other matched blobs. 
+    sel = matched_blobs ~= matched_blobs(i);
+    not_these_px = cat(1,stats_J(matched_blobs(sel)).PixelIdxList);
+    mask(not_these_px) = 0;
+    
+    %Change
     %Sub image of this blob. 
-    sub_img = J(yrange,xrange);
+    int_vals = J(mask);
     
     %Iterator until histogram is good. 
-    [subBW] = iterator( sub_img, params );
+    thresh = iterator( int_vals, params );
     
+    %Apply threshold to this mask. 
+	subImg = J(yrange,xrange);
+    subBW =  subImg >= thresh & mask(yrange,xrange);
+        
     %Add to BW.
     BW(yrange,xrange) = BW(yrange,xrange) | subBW;
     
@@ -103,48 +116,55 @@ end
 
 
 %Iteration sub-function. 
-function [subBW] = iterator( img, params )
+function thresh = iterator( int_vals, params )
 
 %Percentile range. 
 p_range=[1:0.2:100];
 
 %Initialize. 
 thresh = params.thresh_start;
+params.prom_threshold=0.0003;
+params.maxPeakP = 0.25;
 go=1;
 
 while go
     
     %Perform analysis. 
-    px = img>=thresh;
-    vals = norm_data(img(px));
+    px = int_vals>=thresh;
+    vals = norm_data(int_vals(px));
     %Need to smooth the percentile before taking derivative. 
     P =  smooth(prctile(vals,p_range),12);
     %Smooth again to remove weak peaks. 
     dP = smooth(diff(P),20);
-    [~,LOCS,~,PROM] = findpeaks(dP,p_range(2:end),'MinPeakProminence',0.001);
-    these_pks = find(LOCS > params.peak_range(1) & LOCS < params.peak_range(end));
-    LOCS = LOCS(these_pks);
-    PROM = PROM(these_pks);
-    
+    [~,LOCS,~,PROM] = findpeaks(dP,p_range(2:end),'MinPeakProminence',params.prom_threshold);
+    [~,idx_LOCS] = intersect(p_range,LOCS);
+    %Check that the peaks satisfy histogram criterium. 
+    these_pks = find(LOCS > params.peak_range(1) & LOCS < params.peak_range(end) & P(idx_LOCS)' <= params.maxPeakP );
+   
     %Check peaks. 
     if isempty(these_pks)
         
         go=0;
         
     else
+        
+         
+        LOCS = LOCS(these_pks);
+        PROM = PROM(these_pks);
+
         %Find peak of greatest prominance.
         [~,pk_idx] = max(PROM);
         
         pct_val = LOCS(pk_idx);
         
         %Increasing threshold. 
-        thresh = prctile(img(px),pct_val);
+        thresh = prctile(int_vals(px),pct_val);
         go=0;
     end
 
 end
 
-subBW = img >= thresh;
+%subBW = img >= thresh;
 
 end
 
