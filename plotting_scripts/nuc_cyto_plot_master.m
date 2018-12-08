@@ -76,7 +76,6 @@ for g = 1:length(groups)
             %The spot_tracking data is stored as: 
             data = obj.get_track_data(j);
             
-<<<<<<< HEAD
             %Ignore cells with low signal. 
             if step.threshold_int
                 %Get mean nuc signal. 
@@ -86,8 +85,6 @@ for g = 1:length(groups)
                 end
             end
             
-=======
->>>>>>> 88ad381f4bb4df1fefeec95bc37129ea3ef852fa
             %Ratio
             RATIO = (cat(1,data.nuc_mean)- background_val)./ ( cat(1,data.cyto_mean) - background_val);
             % RATIO = (cat(1,data.nuc_med)-params.mean_background)./ ( cat(1,data.cyto_med) - params.mean_background);
