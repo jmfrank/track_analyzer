@@ -81,13 +81,14 @@ for d = 1:length(div)
     
     %If one or two daughters, easy. if more, then throw error - deal with
     %later?
-    if length(daughter_track_idx) < 3 
+    if length(daughter_track_idx) <= 2 
             
         %Good number of tracks. 
         daughter_tracks = obj.tracks( daughter_track_idx );
     else
 
-        error('more than 2 daughters!');
+        warning('more than 2 daughters!');
+        daughter_tracks = obj.tracks( daughter_track_idx );
 
     end
 
@@ -174,10 +175,12 @@ for d = 1:length(div)
     if spots_after
         %Get intensities of each spots. 
         daughter_int_tracks = obj.getSpotTrackIntTraces( daughter_spot_track_idx, params.min_intensity );
+        
         %Check if any spots are valid after filtering, otherwise reset time stamps wrt to division time. 
         if isempty(daughter_int_tracks)
             spots_after=0;
             div(d).daughter_first_pulse = [];
+            div(d).daughter_int_tracks=[];
         else
             
             
@@ -238,7 +241,7 @@ for d = 1:length(div)
         parent_on_times = cellfun(@(x) x(:,1), div(d).parent_int_tracks,'UniformOutput',0);
         on_times = cat(1,parent_on_times{:});
     end
-    
+    d
     if ~isempty(div(d).daughter_int_tracks)
         daughter_on_times = cellfun(@(x) x(:,1), div(d).daughter_int_tracks,'UniformOutput',0);
         on_times = [on_times;cat(1,daughter_on_times{:})];

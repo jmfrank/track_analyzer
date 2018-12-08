@@ -55,6 +55,12 @@ for g = 1:length(groups)
             
         end
         
+        %Get background. 
+        if isempty(obj,'background')
+            error('Missing background data.');
+        end
+        c_idx = find(strcmp(cellstr(strvcat(obj.background.channel)),'YAP'));
+        background_val = obj.background(c_idx).val;
         
         for j = indices(:)'
             
@@ -69,9 +75,18 @@ for g = 1:length(groups)
                         
             %The spot_tracking data is stored as: 
             data = obj.get_track_data(j);
-
+            
+            %Ignore cells with low signal. 
+            if step.threshold_int
+                %Get mean nuc signal. 
+                mu_nuc = mean(cat(1,data.nuc_mean));
+                if mu_nuc < params.threshold_int
+                    continue
+                end
+            end
+            
             %Ratio
-            RATIO = (cat(1,data.nuc_mean)-params.mean_background)./ ( cat(1,data.cyto_mean) - params.mean_background);
+            RATIO = (cat(1,data.nuc_mean)- background_val)./ ( cat(1,data.cyto_mean) - background_val);
             % RATIO = (cat(1,data.nuc_med)-params.mean_background)./ ( cat(1,data.cyto_med) - params.mean_background);
             %Integrated intensity
             sig = RATIO;
@@ -82,15 +97,6 @@ for g = 1:length(groups)
             frame_times = frame_times(sel);
             sig = sig(sel);
 
-            %Area trace. 
-            if step.plotNucArea
-                area_trace = cat(1,data.nuc_area);
-                area_trace = area_trace ./ area_trace(1);
-                area_trace = area_trace(sel);
-                area_mat(frames_present) = area_mat(frames_present) + area_trace';
-                area_mat_sq(frames_present) = area_mat_sq(frames_present) + [area_trace.^2]';
-                
-            end
                 
             %If there are still frames, then continue
             if( isempty( sig ))
@@ -99,9 +105,6 @@ for g = 1:length(groups)
 
             %Normalize signal to first frame if requested
             if( step.NormSignal )
-                %min_v = min(sig);
-                %max_v = sig(1);
-                %sig = (sig-min_v) ./ (max_v-min_v); 
                 sig = sig ./ sig(1);
             end
             
@@ -114,6 +117,18 @@ for g = 1:length(groups)
             if( sum( sig >= params.max_signal ) > 0)
                 continue
             end
+            
+            %Area trace. 
+            if step.plotNucArea
+                area_trace = cat(1,data.nuc_area);
+                area_trace = area_trace ./ area_trace(1);
+                area_trace = area_trace(sel);
+                area_mat(frames_present) = area_mat(frames_present) + area_trace';
+                area_mat_sq(frames_present) = area_mat_sq(frames_present) + [area_trace.^2]';
+                
+            end
+            
+            
             if(step.PlotTraces)
                 if(~isfield(step,'alpha'))
                     step.alpha = 0.2;
