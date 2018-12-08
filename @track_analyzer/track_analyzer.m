@@ -17,7 +17,7 @@ classdef track_analyzer
         
         %Background value. Each experiment should have a background value
         %in order to calculate intensity properly. 
-        img_bg 
+        background 
         
         %Frap field in case we need to use a frap object. 
         frap
@@ -143,6 +143,22 @@ classdef track_analyzer
                 for i = 1:length( names )
                     obj.exp_info = setfield(obj.exp_info,names{i},getfield(exp_info,names{i}));
                 end
+            end
+            
+        end
+        
+        %Add image background data. 
+        function obj = add_bg(obj,BG)
+           
+            %Check input. 
+            if ~isstruct(BG)
+                error('non-structure input');
+            end
+            
+            if isempty(obj.background)
+                obj.background = BG;
+            else
+                error('write code to merge background structures...')
             end
             
         end

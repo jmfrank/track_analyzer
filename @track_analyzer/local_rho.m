@@ -86,6 +86,9 @@ for i = 1:length(F)
     disp(disp_str)  
 end
 
+%Add local rho value. 
+obj.exp_info.search_radius=params.search_radius;
+
 
 end
 
