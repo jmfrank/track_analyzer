@@ -55,6 +55,10 @@ for g = 1:length(groups)
             
         end
         
+        %Get background. 
+        c_idx = find(strcmp(cellstr(strvcat(obj.background.channel)),'YAP'));
+        background_val = obj.background(c_idx).val;
+        
         
         for j = indices(:)'
             
@@ -69,9 +73,9 @@ for g = 1:length(groups)
                         
             %The spot_tracking data is stored as: 
             data = obj.get_track_data(j);
-
+            
             %Ratio
-            RATIO = (cat(1,data.nuc_mean)-params.mean_background)./ ( cat(1,data.cyto_mean) - params.mean_background);
+            RATIO = (cat(1,data.nuc_mean)- background_val)./ ( cat(1,data.cyto_mean) - background_val);
             % RATIO = (cat(1,data.nuc_med)-params.mean_background)./ ( cat(1,data.cyto_med) - params.mean_background);
             %Integrated intensity
             sig = RATIO;
