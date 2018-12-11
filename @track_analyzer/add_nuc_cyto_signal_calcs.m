@@ -1,6 +1,6 @@
 %Go through tracks and add ids that point to the nuc_cyto_data found in
 %frame_obj.
-function obj = add_nuc_cyto_signal_calcs_multiChannel(obj, params)
+function obj = add_nuc_cyto_signal_calcs(obj, params)
 
 debug = 0;
 

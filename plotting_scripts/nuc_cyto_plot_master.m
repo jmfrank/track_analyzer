@@ -56,7 +56,7 @@ for g = 1:length(groups)
         end
         
         %Get background. 
-        if isempty(obj,'background')
+        if isempty(obj.background)
             error('Missing background data.');
         end
         c_idx = find(strcmp(cellstr(strvcat(obj.background.channel)),'YAP'));
