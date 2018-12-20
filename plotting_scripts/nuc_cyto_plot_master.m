@@ -76,14 +76,7 @@ for g = 1:length(groups)
             %The spot_tracking data is stored as: 
             data = obj.get_track_data(j);
             
-            %Ignore cells with low signal. 
-            if step.threshold_int
-                %Get mean nuc signal. 
-                mu_nuc = mean(cat(1,data.nuc_mean));
-                if mu_nuc < params.threshold_int
-                    continue
-                end
-            end
+
             
             %Ratio
             RATIO = (cat(1,data.nuc_mean)- background_val)./ ( cat(1,data.cyto_mean) - background_val);
@@ -114,11 +107,20 @@ for g = 1:length(groups)
             end
             
             %Ignore signals if they pass a max threshold
-            if( sum( sig >= params.max_signal ) > 0)
+            if any( sig >= params.max_signal ) | any( sig <= params.min_signal)
                 continue
             end
             
-            %Area trace. 
+            %Ignore cells with low signal. 
+            if step.threshold_int
+                %Get mean nuc signal. 
+                mu_nuc = mean(cat(1,data.nuc_mean));
+                if mu_nuc < params.threshold_int
+                    continue
+                end
+            end
+
+            %Area trace.
             if step.plotNucArea
                 area_trace = cat(1,data.nuc_area);
                 area_trace = area_trace ./ area_trace(1);
