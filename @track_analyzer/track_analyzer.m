@@ -93,6 +93,20 @@ classdef track_analyzer
             end
         end
         
+        %quick plot of track length distribution. 
+        function obj = distribution_track_length( obj, n );
+            
+            if nargin == 1
+                n=20;
+            end
+            
+            vals = cellfun(@(x) size(x,1), obj.tracks);
+            figure(34);
+            std_figure_settings
+            hist(vals,n);
+            
+        end
+        
         
         %Update the exp_info
         function obj = update_exp_info(obj, exp_info )
