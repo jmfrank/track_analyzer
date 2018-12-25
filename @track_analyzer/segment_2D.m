@@ -593,6 +593,11 @@ end
             mkdir(exp_info.nuc_seg_dir)
         end
         parsave([exp_info.nuc_seg_dir,fname],frame_obj)
+        if isempty(frame_obj.centroids)
+            nFound=0;
+        else
+            nFound=length(frame_obj.contours);
+        end
         disp(['Finished frame:     ',num2str(t),' Found ',num2str(length(frame_obj.contours)),' cells.'])
 
 end
