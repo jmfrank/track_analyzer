@@ -392,7 +392,8 @@ function REMOVE_GROUP_Callback(hObject, eventdata, handles)
 % hObject    handle to REMOVE_GROUP (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-list_handle = findobj('Tag','GroupList');
+%list_handle = findobj('Tag','GroupList');
+list_handle = handles.GroupList;
 curr_entry = list_handle.Value;
 
 if(~iscell( list_handle.String))

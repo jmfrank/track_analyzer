@@ -709,11 +709,9 @@ DrawSpots
             
             div_tracks = find( group_sel_vec > 0 & track_matrix(:,t)' > 0 );                            
             for i = div_tracks
-                this_track = tracks{i};
-                id = t - track_starts(i) + 1;
-                POS = this_track(id,3:4);
-                c = find(U==group_sel_vec(i))-1;
-                all_textH(i).Color=group_colors(c,:);
+                %c = find(U==group_sel_vec(i))-1;
+                %all_textH(i).Color=group_colors(c,:);
+                all_textH(i).Color= group_colors( group_sel_vec(i),:);
             end
         end
         
