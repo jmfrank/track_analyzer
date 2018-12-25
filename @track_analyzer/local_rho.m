@@ -88,7 +88,7 @@ end
 
 %Add local rho value. 
 obj.exp_info.search_radius=params.search_radius;
-
+obj.save;
 
 end
 

@@ -287,7 +287,7 @@ disp(['Started frame: ',num2str(t)])
         end
         imshow3D_filter(J,prctile(J(:),K));
         
-    end 
+end 
 
     %% Different ways to determine threshold. 
     
@@ -327,7 +327,12 @@ disp(['Started frame: ',num2str(t)])
     
     %Simple binarization. 
     else
-        BW  = J >= params.thrshlevel;
+        if length(params.thrshlevel)>1
+            thrshlevel=params.thrshlevel(t);
+        else
+            thrshlevel=params.thrshlevel;
+        end
+        BW  = J >= thrshlevel;
     end
     
     %% smoothing, filling holes, removing bad blobs. 
@@ -582,14 +587,13 @@ disp(['Started frame: ',num2str(t)])
         %Add final binarized image to frame_obj for save keeping
         frame_obj.BW = BW;
 
-
         %Save frame_obj as done before. 
         fname = ['frame_',sprintf('%04d',t),'.mat'];
         if(~exist(exp_info.nuc_seg_dir,'dir'))
             mkdir(exp_info.nuc_seg_dir)
         end
         parsave([exp_info.nuc_seg_dir,fname],frame_obj)
-        disp(['Finished frame:     ',num2str(t)])
+        disp(['Finished frame:     ',num2str(t),' Found ',num2str(length(frame_obj.contours)),' cells.'])
 
 end
 
