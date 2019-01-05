@@ -79,7 +79,12 @@ for t = frames
     msk_img(zSEL) = NaN;
    
     %Loop over detected cells
-    n_cells = length(frame_obj.PixelIdxList);
+    if isfield(frame_obj,'PixelIdxList')
+        n_cells = length(frame_obj.PixelIdxList);
+    else
+        disp(['No cells in frame: ', num2str(t)])
+        continue
+    end
             
     %Create empty structure for nuclear / cytoplasm calculations
     data = gen_data_struct( n_cells );

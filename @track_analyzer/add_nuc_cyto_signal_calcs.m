@@ -53,7 +53,7 @@ end
     
     
     %Initialize empty data structure. 
-    for c = 1:length(c)
+    for c = 1:length(channels)
         nuc_cyto_data.(channels{c}) = gen_data_struct(10000);
     end
     
@@ -73,9 +73,11 @@ end
             these_data = data(f).(channels{c});
             new_length=length(these_data);
             nuc_cyto_data.(channels{c})(count+1:count+new_length) = these_data;
-            count=count+new_length;
         end
         
+        %Counter should be outside of channel loop. 
+        count=count+new_length;
+
         %Because the channel data is 1-for-1, just need one frames vector. 
         if ~isempty(these_data)
             frames = [frames; f.*ones(length(these_data),1)];

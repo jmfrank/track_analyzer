@@ -3,13 +3,9 @@
 
 function nuc_cyto_plot_master( info, groups, labels,step, params,color_vec )
 
-%Deal with default steps.
-if ~isfield(step,'plotNucArea')
-    step.plotNucArea = 0;
-end
-if ~isfield(params,'max_start_frame')
-    params.max_start_frame=Inf;
-end
+%Get defaults. 
+step = default_step(step);
+params = default_params(params);
 
 %Set up subplotting. 
 if step.plotNucArea
@@ -57,10 +53,13 @@ for g = 1:length(groups)
         
         %Get background. 
         if isempty(obj.background)
-            error('Missing background data.');
+            warning('Missing background data.');
+            background_val=0;
+        else
+            c_idx = find(strcmp(cellstr(strvcat(obj.background.channel)),'YAP'));
+            background_val = obj.background(c_idx).val;            
         end
-        c_idx = find(strcmp(cellstr(strvcat(obj.background.channel)),'YAP'));
-        background_val = obj.background(c_idx).val;
+
         
         for j = indices(:)'
             
@@ -221,6 +220,57 @@ if(step.plot)
         subplot(2,1,2)
         %Plotting options
         set(gca,'fontsize',20,'linewidth',2);
+    end
+end
+
+
+
+end
+
+
+
+%% Check for params / steps. 
+
+%Default parameters. 
+function params = default_params( params )
+%List of all default parameters. 
+dparams.min_signal=0;
+dparams.max_signal=20;
+dparams.max_start_frame=Inf;
+
+S  = fieldnames( dparams );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(params,S{i})
+        params.(S{i}) = dparams.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dparams.(S{i}))]);
+    end
+end
+
+
+
+end
+
+%Default steps. 
+
+function step = default_step( step )
+
+%List of all default steps. 
+dstep.plotNucArea=0;
+dstep.threshold_int=0;
+
+S  = fieldnames( dstep );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(step,S{i})
+        step.(S{i}) = dstep.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dstep.(S{i}))]);
     end
 end
 

@@ -2,7 +2,7 @@
 %lines. This assumes all experiments are the same image frequency. Specify
 %the frames before and after for analyzing. 
 
-function [after, before] = before_after_treatment_master( csv_file, pairs, labels, frames_before, frames_after, dt, step, params, MinSumInt)
+function [after, before] = before_after_treatment_master( info, pairs, labels, frames_before, frames_after, dt, step, params, MinSumInt)
 
 %Vector of frame indices before / after. 
 frames_before_vec = 1:frames_before;
@@ -36,9 +36,9 @@ for i = 1:length(pairs)
     params.MinSumInt = MinSumInt(i);
     
     % Send to master script to get fraction of cells. 
-    [f_curves,t_vals, INT]  = transcription_dynamics_fraction_master( csv_file, groups, labels, step, params);
+    [f_curves,t_vals, INT]  = transcription_dynamics_fraction_master( info, groups, labels, step, params);
     % Get pulse durations. 
-    PULSE = transcription_dynamics_pulse_master(csv_file,groups,labels,step,params);
+    PULSE = transcription_dynamics_pulse_master(info,groups,labels,step,params);
     
     %Get before frames vector. 
     these_frames_before = frames_before-length(f_curves{1})+1:frames_before;
