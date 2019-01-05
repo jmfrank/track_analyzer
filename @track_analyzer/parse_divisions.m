@@ -241,7 +241,7 @@ for d = 1:length(div)
         parent_on_times = cellfun(@(x) x(:,1), div(d).parent_int_tracks,'UniformOutput',0);
         on_times = cat(1,parent_on_times{:});
     end
-    d
+    
     if ~isempty(div(d).daughter_int_tracks)
         daughter_on_times = cellfun(@(x) x(:,1), div(d).daughter_int_tracks,'UniformOutput',0);
         on_times = [on_times;cat(1,daughter_on_times{:})];

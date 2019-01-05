@@ -151,7 +151,7 @@ for t = frames
         %Now get sub_img using sub_stack. Still a img volume though...
         sub_img = double(sub_stack(y_range,x_range,:));
         
-        %Use intensity of DNA to minimize nucleolar regions.
+        %Use intensity of nuclear region to minimize nucleolar regions.
         if step.nuc_thresh
 
             %Which img do we use? 
