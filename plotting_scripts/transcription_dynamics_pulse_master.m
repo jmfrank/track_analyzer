@@ -4,7 +4,7 @@
 % sequence. For example, a pre- and post- treatment of a set of cells. 
 
 
-function L_group= transcription_dynamics_pulse_master( csv_file, groups, labels, step, params, c_vec )
+function L_group= transcription_dynamics_pulse_master( info, groups, labels, step, params, c_vec )
 
 
 
@@ -18,8 +18,9 @@ for g = 1:length(groups)
     exp_ids = groups{g};
     
     %Figure out how many frames
-    exp_info = get_exp_info_lsm_series(csv_file, exp_ids(1));
-    load(exp_info.track_file);
+    info.exp_id=exp_ids(1);
+    track_obj=get_exp(info);
+    
     time_vec = track_obj.exp_info.time_series*step.time_scale;
     n_frames = length(time_vec);
 
@@ -32,13 +33,10 @@ for g = 1:length(groups)
     %Loop over experiments
     for i = 1:length(exp_ids)
         exp_ids(i);
-        %Get exp info for cell tracking object. Different csv_file type for lsm
-        %series
-        exp_info = get_exp_info_lsm_series(csv_file, exp_ids(i));
-
-        %Load track file
-        load( exp_info.track_file);
-        
+        %Load experiment. 
+        info.exp_id=exp_ids(i);
+        track_obj=get_exp(info);
+       
         %Track Ids
         indices = find( cellfun('length',track_obj.tracks) >= params.min_length);
                 

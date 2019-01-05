@@ -14,12 +14,24 @@ for i = 1:length(info.exp_id)
     this_info.csv_file = info.csv_file;
     this_info.exp_id = info.exp_id(i);
     
+    %Check location. 
+    if isfield(info,'loc'); this_info.loc=info.loc; end;
+    
     obj=get_exp( this_info );
     
     seg_files = obj.get_frame_files;
     
     time_series = [time_series, delT + obj.exp_info.time_series(1:length(seg_files))];
-    delT = time_series(end) - time_series(end-1) + time_series(end);
+    if length(time_series) == 1
+        %Ask user for input. 
+        disp('Single time-point image:')
+        disp(obj.exp_info.img_file);
+        prompt = 'Enter the time till next experiment (in seconds):';
+        delT = input(prompt);
+
+    else
+        delT = time_series(end) - time_series(end-1) + time_series(end);
+    end
     
     file_list = [file_list; seg_files];
     
