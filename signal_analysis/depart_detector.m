@@ -15,6 +15,7 @@ DATA = struct('peak',[],'frames',[],'start',[],'stop',[],'net_delS',[]);
 c=0;
 
 start_idx = 1;
+
 while start_idx <= length(sig) - params.min_window_size
     
     %Initialize first step. 
@@ -29,6 +30,7 @@ while start_idx <= length(sig) - params.min_window_size
         
         %Does the signal change direction? 
         condition_1 = -dir*delS > params.buff;
+        
         %Does the signal stagnate? Can only test if stop_idx +1 >
         %params.stagnation_window
         if( (stop_idx-start_idx) >= params.stagnation_window)
