@@ -265,7 +265,6 @@ disp(['Started frame: ',num2str(t)])
        imshow3D(J) 
     end
     
-       
     %Collect stats. 
     stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
     

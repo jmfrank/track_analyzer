@@ -112,8 +112,8 @@ for d = 1:length(div)
     counts = zeros(size(frames));
     
     %Loop over parents, then daughters, take mean N/C over time. 
-        %All cell_tracks involved. 
-        IDS = unique([parent_track_idx,daughter_track_idx]);
+    %All cell_tracks involved. 
+    IDS = unique([parent_track_idx,daughter_track_idx]);
     for i = 1:length(IDS)
         
         this_track = obj.tracks{IDS(i)};

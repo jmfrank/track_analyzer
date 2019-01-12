@@ -100,6 +100,7 @@ for i = 1:length(matched_blobs)
     int_vals = J(mask);
     
     %Iterator until histogram is good. 
+    %i
     thresh = iterator( int_vals, params );
     
     %Apply threshold to this mask. 
@@ -161,6 +162,16 @@ while go
         thresh = prctile(int_vals(px),pct_val);
         go=0;
     end
+    
+%Debugging.
+    
+%     figure(2);
+%     plot(p_range,P,'linewidth',3)
+%     ylabel('Intensity (normalized)')
+%     yyaxis right
+%     plot(p_range(1:end-1), dP,'linewidth',3)
+%     ylabel('dI / dP')
+%     std_figure_settings
 
 end
 
