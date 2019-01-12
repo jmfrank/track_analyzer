@@ -33,7 +33,6 @@ series = 1;
 
 
 %Get the image size of this series. 
-
 T = reader.getSizeT;
 
  %Get step.debug
@@ -43,7 +42,7 @@ if(step.debug)
 end  
 
 %% Generate im_info structure
-    ZSlicesinStack = reader.getSizeT;
+    ZSlicesinStack = reader.getSizeZ;
 
     image_bits     = reader.getBitsPerPixel;   
     

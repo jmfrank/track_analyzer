@@ -34,14 +34,7 @@ classdef track_analyzer
         nuc_cyto_data = [];
         tags = []; %Tags for identifying bleached tracks, bad tracks, etc. 
     end
-    
-    %Hidden variables for checking things
-    properties (SetAccess = private, Hidden = true)
-        nuc_cyto_calc = false;
-        nuc_area_calc = false;
-        seg           = false;
-    end
-    
+     
     
     %% Constructor
     methods
@@ -58,7 +51,7 @@ classdef track_analyzer
     
     methods
         
-        
+        %Save
         function obj = save(obj)
 
             %Save myself! Use append in case there are other parts to the track_file. 
@@ -169,11 +162,11 @@ classdef track_analyzer
                 error('non-structure input');
             end
             
-            if isempty(obj.background)
-                obj.background = BG;
-            else
-                error('write code to merge background structures...')
-            end
+            %if isempty(obj.background)
+            %    obj.background = BG;
+            %else
+            %    error('write code to merge background structures...')
+            %end
             
         end
         
@@ -271,8 +264,17 @@ classdef track_analyzer
             end          
         end
         
+        %Get reader for image. 
+        function reader = get_reader(obj)
+           
+            reader=bfGetReader(obj.exp_info.img_file);
+            
+        end
+        
+        
+        
         % Generate an empty structure for keeping track of nuclear and cytoplasmic signals
-        function data = gen_data_struct( N )
+        function data = gen_data_struct( obj, N )
 
             %Fields
             data(N) = struct('nuc_mean',[],'cyto_mean',[],'local_rho',[],'cell_id',[],'nuc_med',[],'cyto_med',[],'nuc_area',[]);
