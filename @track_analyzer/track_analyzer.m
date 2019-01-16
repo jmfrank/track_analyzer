@@ -270,15 +270,23 @@ classdef track_analyzer
             reader=bfGetReader(obj.exp_info.img_file);
             
         end
-        
-        
-        
+                
         % Generate an empty structure for keeping track of nuclear and cytoplasmic signals
         function data = gen_data_struct( obj, N )
 
             %Fields
             data(N) = struct('nuc_mean',[],'cyto_mean',[],'local_rho',[],'cell_id',[],'nuc_med',[],'cyto_med',[],'nuc_area',[]);
 
+        end
+        
+        %Return the associated spot_tracks for a cell track. 
+        function ids = get_spot_track_ids( obj, track_idx)
+           
+            %All cell track idxs 
+            all_ids = cellfun(@(x) x(1,3), obj.spot_tracks);
+            
+            ids = find( all_ids == track_idx);
+            
         end
         
         %Return intensity traces of spot tracks

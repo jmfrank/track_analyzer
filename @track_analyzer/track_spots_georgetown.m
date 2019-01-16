@@ -4,6 +4,11 @@
 
 function obj = track_spots_georgetown(obj, params, seg_files)
 
+
+%Default parameters. 
+params = default_params(params);
+
+
 %Parse input. Use input file list if provided. 
 if(nargin == 2)
     %Get segmentation files
@@ -34,13 +39,11 @@ for i = 1:length(seg_files)
         end  
         
         %Filter out dim spots. 
-        if(isfield(params,'min_int'))
-            int = cat(1,frame_obj.fit.sum_int);
-            sel = int >= params.min_int;
-            pos = pos(sel,:);
-        else
-            sel = 1:length(frame_obj.fit);
-        end
+        int = cat(1,frame_obj.fit.sum_int);
+        snr = cat(1,frame_obj.fit.snr);
+        
+        sel = int >= params.min_intensity & snr >= params.min_snr;
+        pos = pos(sel,:);
         
         
         %Create ids for all these localizations. 
@@ -108,5 +111,35 @@ obj.spot_tracks = spot_tracks;
 
 %Write tracking params to exp_info
 obj.exp_info.spot_track_params=params;
+
+end
+
+
+%%
+
+%Default parameters. 
+
+function step = default_step( step )
+
+
+
+%List of all default parameters. 
+dstep.min_intensity=0;
+dstep.min_snr=0;
+
+
+S  = fieldnames( dstep );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(step,S{i})
+        step.(S{i}) = dstep.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dstep.(S{i}))]);
+    end
+end
+
+
 
 end
