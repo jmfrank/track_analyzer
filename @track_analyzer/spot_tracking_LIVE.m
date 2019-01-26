@@ -10,8 +10,6 @@
 function obj = spot_tracking_LIVE(obj, params, step, frames)
 
 
-debug = 0;
-
 %Generate reader. FOR NOW, assume we are looking in series 1. 
 [reader,X,Y,Z,C,T] = bfGetReader(obj.exp_info.img_file);
 series = 1;
@@ -58,7 +56,7 @@ for t = frames
         continue
     end
     
-    if(debug)
+    if step.debug
         figure(7)
         imshow3D(img_filter);
         hold on

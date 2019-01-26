@@ -34,7 +34,11 @@ elseif strcmp( loc , 'Home')
     tmp = cellfun(@(x) x(4), data(1));
 elseif strcmp( loc, 'local')
     tmp = cellfun(@(x) x(5), data(1));
+elseif strcmp( loc,'dropbox')
+    a = cellfun(@(x) x(6), data(1));
+    tmp{1} = [path_2_dropbox,a{1}];
 else
+    
     disp('Location must be "Home" or "Work"');
 end
 %now fill in extra columns of data if there's a mis-match at the end. 
