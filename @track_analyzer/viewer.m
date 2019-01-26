@@ -115,7 +115,13 @@ if( iscell( obj.exp_info.img_file ))
         %Loop over frames, add to img cell. 
         for t = 1:T
             plane = get_planesZCT(reader,Z,step.channel,t);
-            Img{e}(:,:,t) = this_img{1}{plane,1};
+            
+            %If guassian filter requested. 
+            if step.gaussian_filter >0
+                Img{e}(:,:,t) = imgaussfilt(this_img{1}{plane,1},step.gaussian_filter);
+            else
+                Img{e}(:,:,t) = this_img{1}{plane,1};
+            end
         end
         
         %Close reader
