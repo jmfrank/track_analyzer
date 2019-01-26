@@ -20,8 +20,6 @@ end
 %Display tracks. 
 if ~isfield(step,'tracks')
     states.tracks = 0;
-else
-    states.tracks = 1;
 end
 
 %Display spots?
@@ -35,9 +33,8 @@ end
 %Parse other inputs. 
 %Input parsing. 
 p = inputParser;
-p.addParameter('tracks',obj.tracks,@iscell);
+p.addParameter('indices',[1:length(obj.tracks)]);
 p.parse(varargin{:});
-tracks = p.Results.tracks;
 
 %% Display cell contours
 if(~isfield(step,'cells'))
@@ -59,7 +56,7 @@ states.plot_data=0;
 states.flag_tracks=0;
 states.flag_cells=0;
 states.flag_spots=0;
-
+states.tracks=step.tracks;
 %Save states to app data. 
 setappdata(0,'states',states');
 
@@ -196,16 +193,11 @@ else
 end
 
 %% Deal with specified ROI. 
-if isfield(step,'roi')
-    x_range = step.roi(1): step.roi(1) + step.roi(3) - 1;
-    y_range = step.roi(2): step.roi(2) + step.roi(4) - 1;
-    %Check size of image. 
-    sel_x = x_range > 0 & x_range < X;
-    sel_y = y_range > 0 & y_range < Y;
-    x_range = x_range(sel_x);
-    y_range = y_range(sel_y);
+if step.roi
+    update_roi( step.roi );
+else
+    shift_vec=[0,0];
 end
-
 %% Loading various data. 
 %Add some things to appdata
 setappdata(0,'track_obj',obj);
@@ -216,7 +208,6 @@ DATA.dims = [Y,X,Z,C,T];
 %Get the screen size. 
 screen = get(0,'ScreenSize');
 
-
 %Set everything to the same figure. That way we can clear it before hand. 
 MAIN = figure(7);
 MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
@@ -226,43 +217,37 @@ MAIN.Tag = 'Main';
 
 clf;
 set(MAIN,'color','w');
+
 %Initialize t
 t=1;
 setappdata(0,'t',t);
 
-if(nargin < 3)
-    channel_id = 1;
-end
     
 %Define some variables
-T = size(frame2img,1); 
+%T = size(frame2img,1); 
 
-%To save time in plotting, make a reference matrix to tell us which tracks
-%are part of which frame. While looping, also fill out cell_sel data. 
-track_matrix = zeros(length(tracks),T);
-track_starts = zeros(length(tracks),1);
-max_cell_counts_per_frame=zeros(T,1);
-for i = 1:length(tracks)
-    ts = tracks{i}(:,1);
-    cell_ids = tracks{i}(:,2);
-    track_matrix(i,ts) = cell_ids';
-    track_starts(i) = ts(1);
-end
+%% Cell tracks and spot tracks handling.
+global track_matrix track_sel_vec cell_sel_mat
 
-%Initiate selection vector for cell tracks. 
-track_sel_vec = ones(size(tracks));
+%Updater function sets the above global variables. Useful for external
+%control. 
+initialize_tracks(p.Results.indices)
+       
 %Initiate selection vector for spots. 
 spot_sel_vec = ones(size(obj.results));
 
-%Cell selection matrix. 1 means active, 0s means inactive. 
-cell_sel_mat = false(size(track_matrix));
-cell_sel_mat( track_matrix > 0 ) = 1;
+%Precalculate which spot-tracks are assigned to which tracks. 
+if ~isempty( obj.spot_tracks )
+    spot_track_assignment = cellfun(@(x) x(1,3), obj.spot_tracks);
+end
 
 %Look for existing flags. 
 try
     flags = obj.exp_info.flagged.tracks;
     %Go ahead and flag these tracks. 
     track_sel_vec(flags) = 0;
+    
+    %Add spot track flagging...
 end
 
 %Look for existing division data
@@ -287,7 +272,7 @@ end
 %Colors used for on and off. 
 c_vec = [1,0,0; 0,1,0];
 
-%% TOOL box
+%% tool box
 %Need to tell gui about existing groups. 
 setappdata(0,'groups',groups);
 setappdata(0,'group_sel_vec',group_sel_vec);
@@ -384,7 +369,7 @@ figure(MAIN);
 %axes('position',[0,0.2,1,0.8]), 
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
-if isfield(step,'roi')
+if step.roi
     imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
 else
     imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
@@ -397,7 +382,6 @@ for i = 1:n_tracks
     all_textH(i) = text(1,1,num2str(i),'ButtonDownFcn',@textcallback,'Visible','off','UserData',i);
 end
 
-
 FigPos = get(MAIN,'Position');
 T_pos = [50 45 uint16(FigPos(3)-100)+1 20];
 time_txt_Pos = [50 65 uint16(FigPos(3)-100)+1 15];
@@ -406,12 +390,12 @@ Wtxt_Pos = [50 20 60 20];
 Wval_Pos = [110 20 60 20];
 Ltxt_Pos = [175 20 45 20];
 Lval_Pos = [220 20 60 20];
-Track_Pos =[280 20 60 20];
 
 BtnStPnt = uint16(FigPos(3)-250)+1;
 if BtnStPnt < 300
     BtnStPnt = 300;
 end
+
 Btn_Pos = [BtnStPnt 20 100 20];
 ChBxFilter_Pos = [BtnStPnt-100, 20, 50, 20];
 thresh_val_Pos  = [BtnStPnt-50, 20, 50, 20];
@@ -434,16 +418,12 @@ ChBxFilter_hand = uicontrol('Style','checkbox','Position',ChBxFilter_Pos,'String
 thresh_text_hand = uicontrol('Style', 'text','Position', thresh_text_Pos,'String','Threshold: ', 'BackgroundColor', [0.8 0.8 0.8], 'FontSize', LFntSz);
 thresh_val_hand = uicontrol('Style', 'edit','Position', thresh_val_Pos,'String',sprintf('%6.0f',LevV), 'BackgroundColor', [1 1 1], 'FontSize', LVFntSz,'Callback',@DrawSpots);
 
-%Precalculate which spot-tracks are assigned to which tracks. 
-if ~isempty( obj.spot_tracks )
-    spot_track_assignment = cellfun(@(x) x(1,3), obj.spot_tracks);
-end
-
-
 %Add slider to guidata. 
 gdata.slider=Thand;
 gdata.reset_flags = @reset_flags;
 gdata.cells_callback = @cells_callback;
+gdata.update_roi     = @update_roi;
+gdata.initialize_tracks  = @initialize_tracks;
 guidata(MAIN, gdata)
 
 set(MAIN, 'WindowScrollWheelFcn', @mouseScroll);
@@ -458,7 +438,9 @@ set(MAIN,'ResizeFcn', @figureResized)
 DrawTracks
 DrawCells(states)
 DrawSpots
-%% GUI Functions. 
+
+%% guidata functions - created to allow external user control. 
+
 % -=< Reset flags matrix >=-
     function reset_flags()
         
@@ -491,12 +473,89 @@ DrawSpots
 % If user decides they really want to look at cells and they weren't
 % loaded. 
     function cells_callback()
-        
         cells = obj.getCellContours();
+    end
+
+% Initialize the cell track variables. 
+
+    function initialize_tracks( indices )
+        
+        %Default is to turn all tracks 'on'. 
+        if nargin < 0
+            indices = [1:length(obj.tracks)];
+        end
+       
+        tracks=obj.tracks;
+        
+        %To save time in plotting, make a reference matrix to tell us which tracks
+        %are part of which frame. While looping, also fill out cell_sel data. 
+        track_matrix = zeros(length(tracks),T);
+        
+        for i = indices
+            ts = tracks{i}(:,1);
+            cell_ids = tracks{i}(:,2);
+            track_matrix(i,ts) = cell_ids';
+        end
+
+        %Initiate selection vector for cell tracks. 
+        track_sel_vec = ones(size(tracks));
+
+        %Cell selection matrix. 1 means active, 0s means inactive. 
+        cell_sel_mat = false(size(track_matrix));
+        cell_sel_mat( track_matrix > 0 ) = 1;      
+
+    end
+
+% Allow adjusting the current selection of visible tracks. 
+
+    function update_track_selection( indices )
+        
+        off_sel = setdiff(1:length(obj.tracks),indices);
+        track_matrix = track_matrix_og;
+        
+        track_matrix( off_sel, : ) = 0;
         
     end
 
+% Update ROI. 
+    function update_roi( new_roi )
+        
+        %If no input variable, reset to no ROI. 
+        if nargin < 1
+            step.roi = 0;
+            shift_vec = [0,0];
+            AX = findobj( MAIN.Children, 'Type','Axes');
+            AX.XLim(2) = X;
+            AX.YLim(2) = Y;
+        else            
 
+            x_range = new_roi(1): new_roi(1) + new_roi(3) - 1;
+            y_range = new_roi(2): new_roi(2) + new_roi(4) - 1;
+            %Check size of image. 
+            sel_x = x_range > 0 & x_range < X;
+            sel_y = y_range > 0 & y_range < Y;
+            x_range = x_range(sel_x);
+            y_range = y_range(sel_y);
+
+            step.roi = new_roi;
+
+            %Adjust axes. 
+            AX = findobj( MAIN.Children, 'Type','Axes');
+            AX.XLim(2) = length(x_range);
+            AX.YLim(2) = length(y_range);
+
+            %%% There might be a bug when the plot  was zoomed in and ROI was
+            %%% updated. 
+
+
+
+            %Shift if using ROI. 
+            shift_vec = [-step.roi(1),-step.roi(2)];
+        end
+        
+    end
+
+%% Original GUI functions from imshow3D. 
 % -=< Figure resize callback function >=-
     function figureResized(object, eventdata)
         FigPos = get(MAIN,'Position');
@@ -538,7 +597,7 @@ DrawSpots
         frame_idx = frame2img(t,2);
         
         %Plot image. 
-        if isfield(step,'roi')
+        if step.roi
             set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
@@ -580,7 +639,7 @@ DrawSpots
         img_idx = frame2img(t,3);
         frame_idx = frame2img(t,2);
         %Plot image. 
-        if isfield(step,'roi')
+        if step.roi
             set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
@@ -665,6 +724,11 @@ DrawSpots
         %Update states. 
         states = getappdata(0,'states');
         MAIN;
+        %Check if tracks exist. 
+        if isempty(tracks)
+            return
+        end
+        
         if ~states.tracks
             %Check if there are some text objects. 
             [all_textH.Visible]=deal('off');
@@ -672,13 +736,6 @@ DrawSpots
         end
         
         MAIN;
-        
-        %Shift if using ROI. 
-        if isfield(step,'roi')
-            shift_vec = [-step.roi(1),-step.roi(2)];
-        else
-            shift_vec = [0,0];
-        end
         
         %Use track matrix and cell selection matrix to figure out which
         %tracks are in this frame.
@@ -1003,16 +1060,11 @@ DrawSpots
                         continue
                     end
                     
-                    %Shift if using ROI. 
-                    if isfield(step,'roi')
-                        shift_vec = [-step.roi(1),-step.roi(2)];
-                    else
-                        shift_vec = [0,0];
-                    end
-                    
                     %Plot as distinct object.
                     if( spot_sel_vec( result_id ))
-                        h = viscircles(pos([2,1])+shift_vec,10,'color','g');
+                        SC=[125,42,142]/255; %Purple...
+                        SC=[172,156,255]/255;
+                        h = viscircles(pos([2,1])+shift_vec,10,'color',SC,'EnhanceVisibility',0,'linewidth',4);
                     else
                         h = viscircles(pos([2,1])+shift_vec,10,'color','r');
                     end
@@ -1035,7 +1087,10 @@ DrawSpots
             return
         end
             
-        cell_pixels = cells{t};
+        if ~exist('cells','var')
+            cells_callback;
+        end     
+        
         MAIN;
         %Figure out dimensions. 
         if DATA.dims(3) == 1
@@ -1058,17 +1113,17 @@ DrawSpots
         hold on
         if dim==2
             %Find the index in cells. 
-            for p = 1:length(on_tracks)
+            for p_ = 1:length(on_tracks)
                 
-                frames = tracks{on_tracks(p)}(:,1);
-                cell_id = tracks{on_tracks(p)}(frames==t,2);
+                frames = tracks{on_tracks(p_)}(:,1);
+                cell_id = tracks{on_tracks(p_)}(frames==t,2);
                 
                 %Plot contour. 
                 line_color=[148,47,142]./255;
                 %line_color=[113,191,110]./255;
                 %line_color=[0,0,0];
                 
-                plot(cells{t}{cell_id}(:,1),cells{t}{cell_id}(:,2),':','linewidth',6,'color',[line_color,0.9]);
+                plot(cells{t}{cell_id}(:,1)+shift_vec(1),cells{t}{cell_id}(:,2)+shift_vec(2),':','linewidth',6,'color',[line_color,0.9]);
             end
             
         elseif dim==3

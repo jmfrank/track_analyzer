@@ -63,12 +63,18 @@ try
     combined = combined.track_cells(params);
     combined.save;
     disp('tracked successfully');
+catch ME
+    warning('could not track data');
+    rethrow(ME)
+end    
+    
+try
     combined = combined.add_nuc_cyto_signal_calcs;
     disp('added nuc/cyto data');
     combined.save;
 
 catch ME
-    warning('could not track or add data');
+    warning('could not add N/C data');
     rethrow(ME)
 end
 

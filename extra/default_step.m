@@ -19,6 +19,8 @@ dstep.iterative_thresholding=0;
 dstep.channel=1;
 dstep.merger=0;
 dstep.gaussian_filter = 0;
+dstep.roi = 0;
+dstep.tracks=0;
 
 S  = fieldnames( dstep );
 
