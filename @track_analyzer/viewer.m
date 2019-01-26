@@ -186,12 +186,7 @@ else
 
 end
 
-%% Deal with specified ROI. 
-if step.roi
-    update_roi( step.roi );
-else
-    shift_vec=[0,0];
-end
+
 %% Loading various data. 
 %Add some things to appdata
 setappdata(0,'track_obj',obj);
@@ -219,6 +214,24 @@ setappdata(0,'t',t);
     
 %Define some variables
 %T = size(frame2img,1); 
+
+%% Deal with specified ROI. 
+if step.roi
+    update_roi( step.roi );
+else
+    shift_vec=[0,0];
+end
+
+%% Initialize image. 
+if step.roi
+    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
+    %Adjust axes.
+    AX = findobj( MAIN.Children, 'Type','Axes');
+    AX.XLim(2) = length(x_range);
+    AX.YLim(2) = length(y_range);
+else
+    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
+end
 
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
@@ -363,11 +376,7 @@ figure(MAIN);
 %axes('position',[0,0.2,1,0.8]), 
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
-if step.roi
-    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
-else
-    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
-end
+
 
 %Make text handle array. Index of entry corresponds to track id.
 n_tracks= length(track_sel_vec);
@@ -511,6 +520,27 @@ DrawSpots
         
     end
 
+% Update frame. 
+    function update_frame
+        
+        %Get image index. 
+        img_idx = frame2img(t,3);
+        frame_idx = frame2img(t,2);
+        
+        H=findobj(MAIN,'type','Image');
+        
+        if step.roi
+            set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
+        else
+            set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
+        end
+        
+        %Adjust axes.
+        AX = findobj( MAIN.Children, 'Type','Axes');
+        AX.XLim(2) = length(x_range);
+        AX.YLim(2) = length(y_range);
+    end
+        
 % Update ROI. 
     function update_roi( new_roi )
         
@@ -532,11 +562,6 @@ DrawSpots
             y_range = y_range(sel_y);
 
             step.roi = new_roi;
-
-            %Adjust axes. 
-            AX = findobj( MAIN.Children, 'Type','Axes');
-            AX.XLim(2) = length(x_range);
-            AX.YLim(2) = length(y_range);
 
             %%% There might be a bug when the plot  was zoomed in and ROI was
             %%% updated. 
@@ -585,17 +610,9 @@ DrawSpots
     function TimeSlider(object,event)
         t = round(get(object,'Value'));
         setappdata(0,'t',t);
-        H = findobj(img_plot,'Type','Image');
-        %Get image index. 
-        img_idx = frame2img(t,3);
-        frame_idx = frame2img(t,2);
         
-        %Plot image. 
-        if step.roi
-            set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
-        else
-            set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
-        end
+        update_frame
+        
         if step.AutoAdjust
             AutoAdjust
         end
@@ -628,18 +645,12 @@ DrawSpots
         else
             set(time_txthand, 'String', '2D image');
         end
-        H = findobj(img_plot,'Type','Image');
-        %Get image index. 
-        img_idx = frame2img(t,3);
-        frame_idx = frame2img(t,2);
-        %Plot image. 
-        if step.roi
-            set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
-        else
-            set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
-        end       
+        
+        update_frame
+        
         set(Thand,'Value',t);
         DrawTracks
+        
         %Add drawspots here so its' called everytime DrawTracks is. 
         DrawCells(states)
         DrawSpots
