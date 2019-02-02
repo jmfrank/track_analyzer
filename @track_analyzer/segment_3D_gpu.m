@@ -3,6 +3,8 @@
 
 % Specify segmentation parameters in params, and function options in step.
 
+% Use this version if you have a GPU compatible with MATLAB. ~4-6x speed-up over CPU. 
+
 % 7-23-18: changed the filtering step. Using diffusion in 3D code. Also,
 % calculating gaussian gradient in 3D using separable filters. Now we don't
 % have to loop over z. Hopefully this is a bit faster! ALSO, changing the
