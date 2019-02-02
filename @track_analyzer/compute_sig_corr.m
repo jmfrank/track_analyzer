@@ -1,4 +1,4 @@
-function obj = computeSigCorr(obj, varargin)
+function obj = compute_sig_corr(obj, varargin)
 
 %% ADAPTED FROM msdanalyzer velocity correlation. 
 %%COMPUTEVCORR Compute velocity autocorrelation.
