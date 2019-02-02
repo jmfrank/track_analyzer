@@ -1,4 +1,4 @@
-function mean_sigcorr = getMeanSigCorr(obj, indices)
+function mean_sigcorr = get_mean_sig_corr(obj, indices)
 
 %% ADAPTED FROM msdanalyzer mean velocity correlation. 
 %%GETMEANVCORR Compute the weighted mean of velocity autocorrelation.
