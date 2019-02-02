@@ -1,8 +1,7 @@
-% f3D Segmentation of cell nuclei. Based on: 'Object segmentation and ground
+% 3D Segmentation of cell nuclei. Based on: 'Object segmentation and ground
 % truth in 3D embryonic imaging'. 
 
 % Specify segmentation parameters in params, and function options in step.
-% Written for single time-point images. 
 
 % 7-23-18: changed the filtering step. Using diffusion in 3D code. Also,
 % calculating gaussian gradient in 3D using separable filters. Now we don't
