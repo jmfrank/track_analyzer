@@ -123,6 +123,8 @@ if( iscell( obj.exp_info.img_file ))
         
         %Close reader
         reader.close();
+        clear this_img
+
     end
     
     
@@ -153,13 +155,17 @@ else
             Img{1} = zeros(Y,X,T);
             for t = 1:T
                 plane = get_planesZCT(reader,Z,step.channel,t);
-                Img{1}(:,:,t) = this_img{1}{plane,1};
+                if step.gaussian_filter > 0
+                    Img{1}(:,:,t) = imgaussfilt(this_img{1}{plane,1},step.gaussian_filter);
+                else
+                    Img{1}(:,:,t) = this_img{1}{plane,1};
+                end
             end
         end
         
         %Close reader
         reader.close();
-        
+        clear this_img
     %Maxp doesn't exist. 
     else
         
@@ -184,6 +190,7 @@ else
 
             %Close reader
             reader.close();
+            clear this_img
         else
             error('no maxp available');
 
@@ -220,24 +227,6 @@ setappdata(0,'t',t);
     
 %Define some variables
 %T = size(frame2img,1); 
-
-%% Deal with specified ROI. 
-if step.roi
-    update_roi( step.roi );
-else
-    shift_vec=[0,0];
-end
-
-%% Initialize image. 
-if step.roi
-    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
-    %Adjust axes.
-    AX = findobj( MAIN.Children, 'Type','Axes');
-    AX.XLim(2) = length(x_range);
-    AX.YLim(2) = length(y_range);
-else
-    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
-end
 
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
@@ -383,8 +372,27 @@ figure(MAIN);
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
 
+%% Deal with specified ROI. 
+if step.roi
+    update_roi( step.roi );
+else
+    shift_vec=[0,0];
+end
 
-%Make text handle array. Index of entry corresponds to track id.
+%% Initialize image. 
+
+if step.roi
+    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
+    %Adjust axes.
+    AX = findobj( MAIN.Children, 'Type','Axes');
+    AX.XLim(2) = length(x_range);
+    AX.YLim(2) = length(y_range);
+else
+    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
+end
+
+
+%% Make text handle array. Index of entry corresponds to track id.
 n_tracks= length(track_sel_vec);
 all_textH = gobjects(n_tracks,1);
 for i = 1:n_tracks
@@ -537,14 +545,14 @@ DrawSpots
         
         if step.roi
             set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
+            %Adjust axes.
+            AX.XLim(2) = length(x_range);
+            AX.YLim(2) = length(y_range);
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
         end
         
-        %Adjust axes.
-        AX = findobj( MAIN.Children, 'Type','Axes');
-        AX.XLim(2) = length(x_range);
-        AX.YLim(2) = length(y_range);
+
     end
         
 % Update ROI. 
@@ -564,6 +572,11 @@ DrawSpots
             %Check size of image. 
             sel_x = x_range > 0 & x_range < X;
             sel_y = y_range > 0 & y_range < Y;
+            
+            if sum(sel_x)==0 | sum(sel_y)==0
+                disp('bad roi')
+                return
+            end
             x_range = x_range(sel_x);
             y_range = y_range(sel_y);
 
