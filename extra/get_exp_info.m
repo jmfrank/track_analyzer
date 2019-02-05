@@ -1,7 +1,8 @@
-%Read experiment information for LSM series. Used for Nascent rna locus
-%tracking. 
+%Retrieve info on experiment specified in a csv_file. 
+%This was written for my own specific organization style. Adapt as needed. 
+% exp_info output needs to be passed to track_analyzer to initialize data tracking object. 
 
-function exp_info = get_exp_info(info) %csv_file, exp_id, info_list, in_loc)
+function exp_info = get_exp_info(info) 
 
 %Need to figure out which computer we are using. I.e. which path to
 %dropbox. 

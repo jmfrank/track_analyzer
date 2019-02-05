@@ -1,7 +1,8 @@
-% Viewing program to quickly look at results. Uses max-int projection of
-% raw image and plots Track id and detected nascent spots. 
+% Viewing function to look at results, flagging bad cells/spots, and grouping cells together to annotate division events.
+% The step structure specifies what you want to view (cells,tracks,spots...)
 
-% This is based off imshow3D. 
+% This is based off imshow3D (https://www.mathworks.com/matlabcentral/fileexchange/41334-imshow3d). 
+
 function viewer(obj, step, varargin)
 
 %Clear out existing gui data. 

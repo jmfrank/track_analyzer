@@ -1,4 +1,4 @@
-% 3D Segmentation of cell nuclei. Based on: 'Object segmentation and ground
+% 2D Segmentation of cell nuclei. Based on: 'Object segmentation and ground
 % truth in 3D embryonic imaging'. 
 
 % This version is written for 2D images. If there's a z-stack, then just
