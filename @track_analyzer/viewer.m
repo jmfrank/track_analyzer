@@ -200,7 +200,8 @@ else
 
 end
 
-
+% Update T
+T = f_count;
 %% Loading various data. 
 %Add some things to appdata
 setappdata(0,'track_obj',obj);
@@ -229,7 +230,7 @@ setappdata(0,'t',t);
 %Define some variables
 %T = size(frame2img,1); 
 
-<<<<<<< HEAD
+
 %% Deal with specified ROI. 
 if step.roi
     update_roi( step.roi );
@@ -237,8 +238,6 @@ else
     shift_vec=[0,0];
 end
 
-=======
->>>>>>> a65fb2387fe8262d27e4a68c59af349d95c3070f
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
 
@@ -581,7 +580,7 @@ TOOL.Visible='on';
 
     end
         
-% Update ROI. 
+% Update ROI. input roi must be [lower_x, lower_y, width, height]
     function update_roi( new_roi )
         
         %If no input variable, reset to no ROI. 
@@ -608,6 +607,10 @@ TOOL.Visible='on';
 
             step.roi = new_roi;
 
+            AX = findobj( MAIN.Children, 'Type','Axes');
+            AX.XLim(2) = length(x_range);
+            AX.YLim(2) = length(y_range);
+            
             %%% There might be a bug when the plot  was zoomed in and ROI was
             %%% updated. 
 
