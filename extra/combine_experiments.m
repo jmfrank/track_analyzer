@@ -10,7 +10,7 @@ delT = 0;
 
 %Loop over exp_ids
 for i = 1:length(info.exp_id)
-    info.exp_id(i)
+    info.exp_id(i);
     this_info.csv_file = info.csv_file;
     this_info.exp_id = info.exp_id(i);
     
@@ -59,7 +59,8 @@ combined.save;
 
 %By default, start tracking, adding data
 try
-    params.max_dist= obj.exp_info.max_dist;
+info
+params.max_dist= obj.exp_info.max_dist;
     combined = combined.track_cells(params);
     combined.save;
     disp('tracked successfully');
@@ -68,14 +69,16 @@ catch ME
     rethrow(ME)
 end    
     
-try
-    combined = combined.add_nuc_cyto_signal_calcs;
-    disp('added nuc/cyto data');
-    combined.save;
+if ~isempty(obj.nuc_cyto_data)
+        try
+        combined = combined.add_nuc_cyto_signal_calcs;
+        disp('added nuc/cyto data');
+        combined.save;
 
-catch ME
-    warning('could not add N/C data');
-    rethrow(ME)
+    catch ME
+        warning('could not add N/C data');
+        rethrow(ME)
+        end
 end
 
 end
