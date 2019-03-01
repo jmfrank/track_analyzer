@@ -287,7 +287,7 @@ disp(['Started frame: ',num2str(t)])
         end
         imshow3D_filter(J,prctile(J(:),K));
         
-end 
+    end 
 
     %% Different ways to determine threshold. 
     
@@ -340,7 +340,7 @@ end
     %Collect stats. 
     stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
 
-    %Remove volumes below size threshold. 
+    %Remove very low volumes. 
     volumes = [stats.Area]';
     sel = volumes >= AbsMinVol/4;
     stats = stats(sel);
@@ -392,7 +392,7 @@ end
         BW = logical(new_BW);
     end
 
-    %Now fill in some holes. 
+    %Now fill in the holes. 
     BW = imfill(BW,'holes');
 
     %Collect stats. 
