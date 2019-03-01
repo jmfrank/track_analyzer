@@ -200,7 +200,8 @@ else
 
 end
 
-
+% Update T
+T = f_count;
 %% Loading various data. 
 %Add some things to appdata
 setappdata(0,'track_obj',obj);
@@ -228,6 +229,14 @@ setappdata(0,'t',t);
     
 %Define total number of frames. 
 T = size(frame2img,1); 
+
+
+%% Deal with specified ROI. 
+if step.roi
+    update_roi( step.roi );
+else
+    shift_vec=[0,0];
+end
 
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
@@ -274,16 +283,6 @@ end
 
 %Colors used for on and off. 
 c_vec = [1,0,0; 0,1,0];
-
-%% tool box
-%Need to tell gui about existing groups. 
-setappdata(0,'groups',groups);
-setappdata(0,'group_sel_vec',group_sel_vec);
-
-%Delete existing tool box. 
-delete( findobj('Tag','TOOL_BOX') );
-TOOL = TOOL_BOX( );
-TOOL.Visible='on';
 
 
 %% Set up GUI. 
@@ -368,10 +367,24 @@ ChBxSz = 10;
 
 %Auto disp-range
 [Rmin Rmax] = WL2R(Win, LevV);
+
+%% Initialize image. 
+
 figure(MAIN);
 %axes('position',[0,0.2,1,0.8]), 
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
+if step.roi
+    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
+    %Adjust axes.
+    AX = findobj( MAIN.Children, 'Type','Axes');
+    AX.XLim(2) = length(x_range);
+    AX.YLim(2) = length(y_range);
+else
+    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
+    x_range = 1:X;
+    y_range = 1:Y;
+end
 
 %% Deal with specified ROI. 
 if step.roi
@@ -456,6 +469,17 @@ set(MAIN,'ResizeFcn', @figureResized)
 DrawTracks
 DrawCells(states)
 DrawSpots
+
+
+%% tool box
+%Need to tell gui about existing groups. 
+setappdata(0,'groups',groups);
+setappdata(0,'group_sel_vec',group_sel_vec);
+
+%Delete existing tool box. 
+delete( findobj('Tag','TOOL_BOX') );
+TOOL = TOOL_BOX( );
+TOOL.Visible='on';
 
 %% guidata functions - created to allow external user control. 
 
@@ -556,7 +580,7 @@ DrawSpots
 
     end
         
-% Update ROI. 
+% Update ROI. input roi must be [lower_x, lower_y, width, height]
     function update_roi( new_roi )
         
         %If no input variable, reset to no ROI. 
@@ -583,6 +607,10 @@ DrawSpots
 
             step.roi = new_roi;
 
+            AX = findobj( MAIN.Children, 'Type','Axes');
+            AX.XLim(2) = length(x_range);
+            AX.YLim(2) = length(y_range);
+            
             %%% There might be a bug when the plot  was zoomed in and ROI was
             %%% updated. 
 
