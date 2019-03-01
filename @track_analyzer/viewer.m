@@ -226,8 +226,8 @@ t=1;
 setappdata(0,'t',t);
 
     
-%Define some variables
-%T = size(frame2img,1); 
+%Define total number of frames. 
+T = size(frame2img,1); 
 
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
