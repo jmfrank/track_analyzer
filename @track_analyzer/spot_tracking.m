@@ -1,10 +1,6 @@
- %Go through the raw LSM file and perform the spot tracking in 2D or 3D. 
- %This version uses a LoG filter (same as data-doctor routine) to detect
- %spots. This should work much better than DoG. 
+%Perform spot detection in cell nuclei, 2D or 3D. Used for nascent transcription spots seen using FISH staining.
+%Use spot_tracking_LIVE for live-cell imaging. 
 
- 
- %6-7-18: changing to deal with 3D segmentation.
- 
 function obj = spot_tracking(obj, params, step)
 
 Z = obj.exp_info.z_planes;

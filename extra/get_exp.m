@@ -1,9 +1,9 @@
-%Read experiment information for LSM series. Used for Nascent rna locus
-%tracking. 
+% Retrieve data obj, or generate one if it doesn't exist. 
+% info structure must contain csv_file and exp_id (row in csv_file)
 
-function track_obj = get_exp(info) %csv_file, exp_id, info_list, in_loc)
+function track_obj = get_exp(info) 
 
-%Get experiment info. 
+%Retrieve experiment info. 
 exp_info = get_exp_info(info);
 
 if ~isfield( info, 'make_new')

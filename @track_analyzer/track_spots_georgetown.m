@@ -1,4 +1,4 @@
-%Tracking segmented objects based on centroids. 
+%Tracking segmented objects based on centroids. Requires tracking function from: http://site.physics.georgetown.edu/matlab/code.html
 %6-17-18: Updating to make sure it's compatible with 3D tracking. 
 %7-12-18: this version is for tracking spot localizations.
 
