@@ -119,9 +119,7 @@ end
 
 %Default parameters. 
 
-function step = default_step( step )
-
-
+function step = default_params( step )
 
 %List of all default parameters. 
 dstep.min_intensity=0;

@@ -164,6 +164,8 @@ else
             end
         end
         
+        f_count = T;
+        
         %Close reader
         reader.close();
         clear this_img
@@ -213,8 +215,12 @@ DATA.dims = [Y,X,Z,C,T];
 screen = get(0,'ScreenSize');
 
 %Set everything to the same figure. That way we can clear it before hand. 
-MAIN = figure(7);
-MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
+if ishandle(7)
+    MAIN = figure(7);
+else
+    MAIN = figure(7);
+    MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
+end
 
 %Set a tag for finding this gui 
 MAIN.Tag = 'Main';
@@ -230,13 +236,6 @@ setappdata(0,'t',t);
 %Define total number of frames. 
 T = size(frame2img,1); 
 
-
-%% Deal with specified ROI. 
-if step.roi
-    update_roi( step.roi );
-else
-    shift_vec=[0,0];
-end
 
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
@@ -375,16 +374,19 @@ figure(MAIN);
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
 if step.roi
-    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
+    update_xy_range( step.roi )
     %Adjust axes.
     AX = findobj( MAIN.Children, 'Type','Axes');
     AX.XLim(2) = length(x_range);
     AX.YLim(2) = length(y_range);
 else
-    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
+    Y = size(Img{1},1);
+    X = size(Img{1},2);
     x_range = 1:X;
     y_range = 1:Y;
 end
+
+imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
 
 %% Deal with specified ROI. 
 if step.roi
@@ -392,19 +394,6 @@ if step.roi
 else
     shift_vec=[0,0];
 end
-
-%% Initialize image. 
-
-if step.roi
-    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
-    %Adjust axes.
-    AX = findobj( MAIN.Children, 'Type','Axes');
-    AX.XLim(2) = length(x_range);
-    AX.YLim(2) = length(y_range);
-else
-    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
-end
-
 
 %% Make text handle array. Index of entry corresponds to track id.
 n_tracks= length(track_sel_vec);
@@ -576,12 +565,34 @@ TOOL.Visible='on';
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
         end
-        
-
     end
         
 % Update ROI. input roi must be [lower_x, lower_y, width, height]
-    function update_roi( new_roi )
+
+    function update_xy_range( roi )
+        
+        %Update X/Y. 
+        img_idx = frame2img(t,3);
+        Y = size(Img{img_idx},1);
+        X = size(Img{img_idx},2);
+        
+        x_range = roi(1): roi(1) + roi(3) - 1;
+        y_range = roi(2): roi(2) + roi(4) - 1;
+        %Check size of image. 
+        sel_x = x_range > 0 & x_range < X;
+        sel_y = y_range > 0 & y_range < Y;
+
+        if sum(sel_x)==0 || sum(sel_y)==0
+            disp('bad roi')
+            return
+        end
+
+        x_range = x_range(sel_x);
+        y_range = y_range(sel_y);   
+        
+    end
+    
+    function update_roi( roi )
         
         %If no input variable, reset to no ROI. 
         if nargin < 1
@@ -591,31 +602,17 @@ TOOL.Visible='on';
             AX.XLim(2) = X;
             AX.YLim(2) = Y;
         else            
-
-            x_range = new_roi(1): new_roi(1) + new_roi(3) - 1;
-            y_range = new_roi(2): new_roi(2) + new_roi(4) - 1;
-            %Check size of image. 
-            sel_x = x_range > 0 & x_range < X;
-            sel_y = y_range > 0 & y_range < Y;
             
-            if sum(sel_x)==0 | sum(sel_y)==0
-                disp('bad roi')
-                return
-            end
-            x_range = x_range(sel_x);
-            y_range = y_range(sel_y);
-
-            step.roi = new_roi;
-
+            update_xy_range( roi )
+            
+            step.roi = roi;
             AX = findobj( MAIN.Children, 'Type','Axes');
             AX.XLim(2) = length(x_range);
             AX.YLim(2) = length(y_range);
             
             %%% There might be a bug when the plot  was zoomed in and ROI was
             %%% updated. 
-
-
-
+            
             %Shift if using ROI. 
             shift_vec = [-step.roi(1),-step.roi(2)];
         end
@@ -655,7 +652,7 @@ TOOL.Visible='on';
     end
 
 % -=< Time slider callback function >=-
-    function TimeSlider(object,event)
+    function TimeSlider(object, event)
         t = round(get(object,'Value'));
         setappdata(0,'t',t);
         
@@ -670,14 +667,16 @@ TOOL.Visible='on';
         else
             set(time_txthand, 'String', '2D image');
         end
+        
         DrawTracks
-        %Add drawspots here so its' called everytime DrawTracks is. 
+        
+        % Add drawspots here so its' called everytime DrawTracks is. 
         DrawCells(states)
         DrawSpots
     end
 
 % -=< Mouse scroll wheel callback function >=-
-    function mouseScroll (object, eventdata)
+    function mouseScroll(object, eventdata)
         MAIN;
         UPDN = eventdata.VerticalScrollCount;
         t = t - UPDN;
