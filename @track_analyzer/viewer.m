@@ -231,13 +231,6 @@ setappdata(0,'t',t);
 T = size(frame2img,1); 
 
 
-%% Deal with specified ROI. 
-if step.roi
-    update_roi( step.roi );
-else
-    shift_vec=[0,0];
-end
-
 %% Cell tracks and spot tracks handling.
 global track_matrix track_sel_vec cell_sel_mat
 

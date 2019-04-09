@@ -3,7 +3,7 @@
 function percentile = findp( dist, threshold)
 
 
-p = [50:0.2:100];
+p = [50:0.02:100];
 P = prctile(dist,p);
 
 percentile = p(find( P >= threshold, 1));

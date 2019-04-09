@@ -193,7 +193,7 @@ end
 
 if(debug);hold off;end
 
-obj.nuc_cyto_calc = true;
+%obj.nuc_cyto_calc = true;
 
 %Now 
 end

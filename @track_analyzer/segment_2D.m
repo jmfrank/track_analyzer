@@ -108,7 +108,8 @@ obj.exp_info.seg_params=params;
 obj.exp_info.seg_steps=step;
 %Always clear out flags in after new segmentation. 
 obj = obj.clear_flags;
-obj.save;%Auto-save. 
+%Auto-save. 
+obj.save; 
 
 obj.save;
 
@@ -205,7 +206,6 @@ disp(['Started frame: ',num2str(t)])
                 I = uint16(I);
             end
         end
-        
         
         tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
 
