@@ -54,6 +54,7 @@ function TOOL_BOX_OpeningFcn(hObject, eventdata, handles, varargin)
 
 % Choose default command line output for TOOL_BOX
 handles.output = hObject;
+handles.draw_cells = @draw_tracks_button_Callback;
 
 % Update handles structure
 guidata(hObject, handles);
@@ -214,38 +215,76 @@ if ~isempty( drawn_cells )
         F = load(frame_files{f});
         [Y,X,Z] = size(F.frame_obj.BW);    
 
+        % Define the dimensionality. 
+        dims = length(F.frame_obj.centroids{1});
+        
         %Loop over cells.  
         for c = idx
-            %Make pixel idx for the cell in 3D. 
-            this_mask = drawn_cells(c).mask;
-                %Check dimensions. 
-                [thisY,thisX] = size(this_mask);
-                if( thisY~=Y || thisX~=X )
-                    error('mis-matched dimensions?');
-                end
-            full_mask = repmat(this_mask,[1,1,Z]);
-            idx = find(full_mask);
-            [y,x,z] = ind2sub([Y,X,Z],idx);
-            ctr = [mean(x),mean(y),mean(z)];
+            % Make a smooth contour around drawn cell. 
+            %C = contourc(drawn_cells(c).mask,[0.5,0.5]);
+            Cs = drawn_cells(c).vector;
+            
+            
+            % Smoothing coordinates.
+            boundaryLength = size(Cs,1);
+            
+            if boundaryLength < 2
+                continue
+            end
+            
+            t = 1 : boundaryLength;
+            tq = linspace(1, boundaryLength, 200);
+            px = pchip(t, Cs(:,1), tq);
+            py = pchip(t, Cs(:,2), tq);
+            
+            this_mask = poly2mask(px,py,Y,X);
+            
+            %Check dimensions. 
+            [thisY,thisX] = size(this_mask);
+            if( thisY~=Y || thisX~=X )
+                error('mis-matched dimensions?');
+            end
+                
+            % Process differently depending on 2D/3D.
+            if dims == 2
+                
+                full_mask = this_mask; 
+                idx = find(full_mask);
+                [y,x] = ind2sub([Y,X],idx);
+                ctr = [mean(x),mean(y)];
 
+            elseif dims == 3
+            
+                full_mask = repmat(this_mask,[1,1,Z]);
+                idx = find(full_mask);
+                [y,x,z] = ind2sub([Y,X,Z],idx);
+                ctr = [mean(x),mean(y),mean(z)];
+
+            end
+            
             %Append frame_obj with new cell. 
             F.frame_obj.PixelIdxList{end+1} = find(full_mask);
             F.frame_obj.centroids{end+1} = ctr;
-            F.frame_obj.BW = F.frame_obj.BW | full_mask;
+            F.frame_obj.contours{end+1} = [px,py];
         end
 
-
-        %Remove duplicate centers / blobs / etc. 
-        all_ctr = round(cell2mat(F.frame_obj.centroids'));
+        % Remove duplicates that were drawn repeatedly. This is needed when
+        % you do intermediate saving. 
+        all_ctr = round(cell2mat(F.frame_obj.centroids'));                
         D_mat = pdist2(all_ctr,all_ctr);
         sel_mat = D_mat==0 & ~eye(size(all_ctr,1));
-        [i,j] = find(tril(sel_mat));
-        %Selection indices. 
+        [i,~] = find(tril(sel_mat));
         sel_indices = setdiff([1:size(all_ctr,1)],i);
         F.frame_obj.PixelIdxList =  F.frame_obj.PixelIdxList(sel_indices);
         F.frame_obj.centroids = F.frame_obj.centroids(sel_indices);
-
-        %save frame_obj. 
+        F.frame_obj.contours  = F.frame_obj.contours(sel_indices);
+        
+        % Update the BW. 
+        F.frame_obj.BW = zeros(size(F.frame_obj.BW));
+        px = cat(1,F.frame_obj.PixelIdxList{:});
+        F.frame_obj.BW(px) = 1;
+        
+        %Save frame_obj. 
         frame_obj = F.frame_obj;
         save(frame_files{f},'frame_obj');
     end
@@ -253,6 +292,9 @@ if ~isempty( drawn_cells )
     exp_info.drawn_cells_frames = unique(drawn_cells_frames);
     track_obj = track_obj.update_exp_info(exp_info);
     params.max_dist = track_obj.exp_info.max_dist;
+    
+    %Now we re-track to include the new cells. Keep in mind, the gui
+    %doesn't update with these new tracks!!
     track_obj = track_obj.track_cells(params);    
 end
 

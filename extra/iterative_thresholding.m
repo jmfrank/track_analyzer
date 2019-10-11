@@ -100,7 +100,6 @@ for i = 1:length(matched_blobs)
     int_vals = J(mask);
     
     %Iterator until histogram is good. 
-    %i
     thresh = iterator( int_vals, params );
     
     %Apply threshold to this mask. 
@@ -110,7 +109,6 @@ for i = 1:length(matched_blobs)
     %Add to BW.
     BW(yrange,xrange) = BW(yrange,xrange) | subBW;
     
-      
 end
 
 end

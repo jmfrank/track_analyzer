@@ -75,11 +75,7 @@ if( iscell( obj.exp_info.img_file ))
     
     %Keep track of which img is 'on'. 
     states.img_idx = 1;
-    
-    %Loop over images. Fill in a cell array. 
-    f_count = 0;
-    frame2img = []; %Frame count.
-    
+       
     %Check to make sure img_file and max_p_img are the same length. 
     if length(obj.exp_info.img_file) ~= length(obj.exp_info.max_p_img)
         error('Img file and max-p file list are different sizes.');
@@ -143,7 +139,7 @@ else
         img_val = 1.*ones(length(frame_range),1);
         %Add to frame2img. 
         frame2img=[frame_range,frame_range, img_val];
- 
+
         if C > 1
             %load one frame at a time. 
             Img{1} = zeros(Y,X,T);
@@ -165,6 +161,7 @@ else
         end
         
         f_count = T;
+
         
         %Close reader
         reader.close();
@@ -198,6 +195,9 @@ else
             error('no maxp available');
 
         end
+        
+        f_count = T;
+
     end
 
 end
@@ -215,12 +215,8 @@ DATA.dims = [Y,X,Z,C,T];
 screen = get(0,'ScreenSize');
 
 %Set everything to the same figure. That way we can clear it before hand. 
-if ishandle(7)
-    MAIN = figure(7);
-else
-    MAIN = figure(7);
-    MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
-end
+MAIN = figure(7);
+MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
 
 %Set a tag for finding this gui 
 MAIN.Tag = 'Main';
@@ -254,11 +250,27 @@ end
 
 %Look for existing flags. 
 try
-    flags = obj.exp_info.flagged.tracks;
-    %Go ahead and flag these tracks. 
-    track_sel_vec(flags) = 0;
+    flagged = obj.exp_info.flagged;
+    setappdata(0,'flagged',flagged)
     
-    %Add spot track flagging...
+    % Check if cells and/or tracks flagged. 
+    if ~isempty(flagged.cells)
+        disp('Found existing flags.')
+
+        %Loop over flagged cells. 
+        for i = 1:size(flagged.cells,1)
+            this_time = flagged.cells(i,1);
+            this_cell_id = flagged.cells(i,2);
+
+            % Find the track at this time. 
+            this_track = track_matrix(:,this_time)==this_cell_id;
+
+            % Set this cell off. 
+            cell_sel_mat(this_track, this_time) = 0;
+
+        end
+    end
+    
 end
 
 %Look for existing division data
@@ -374,19 +386,16 @@ figure(MAIN);
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
 if step.roi
-    update_xy_range( step.roi )
+    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
     %Adjust axes.
     AX = findobj( MAIN.Children, 'Type','Axes');
     AX.XLim(2) = length(x_range);
     AX.YLim(2) = length(y_range);
 else
-    Y = size(Img{1},1);
-    X = size(Img{1},2);
+    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
     x_range = 1:X;
     y_range = 1:Y;
 end
-
-imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
 
 %% Deal with specified ROI. 
 if step.roi
@@ -394,6 +403,19 @@ if step.roi
 else
     shift_vec=[0,0];
 end
+
+%% Initialize image. 
+
+if step.roi
+    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
+    %Adjust axes.
+    AX = findobj( MAIN.Children, 'Type','Axes');
+    AX.XLim(2) = length(x_range);
+    AX.YLim(2) = length(y_range);
+else
+    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
+end
+
 
 %% Make text handle array. Index of entry corresponds to track id.
 n_tracks= length(track_sel_vec);
@@ -452,7 +474,7 @@ set(MAIN, 'ButtonDownFcn', @mouseClick);
 %this was doing ? 
 set(MAIN,'WindowButtonUpFcn', @mouseRelease)
 set(MAIN,'ResizeFcn', @figureResized)
-
+set(MAIN,'keypressfcn',@fh_kpfcn);
 %Run track/spot drawing. Needs to be after buttondown Fcn set on Main
 %because text are children of Main? 
 DrawTracks
@@ -482,22 +504,19 @@ TOOL.Visible='on';
         flagged = getappdata(0,'flagged');
         states  = getappdata(0,'states');
         
-        if states.flag_cells
+        if states.flag_cells || states.flag_tracks
             
             flagged.cells=[];
-            
-        elseif states.flag_tracks
-            
-            flagged.tracks=[];
         
         elseif states.flag_spots
             
             flagged.spots=[];
         end
+        
         setappdata(0,'flagged',flagged);
-    DrawTracks
-    DrawCells(states)
-    DrawSpots  
+        DrawTracks
+        DrawCells(states)
+        DrawSpots  
     end
 
 
@@ -565,34 +584,12 @@ TOOL.Visible='on';
         else
             set(H,'cdata',squeeze(Img{img_idx}(:,:,frame_idx)));
         end
+        
+
     end
         
 % Update ROI. input roi must be [lower_x, lower_y, width, height]
-
-    function update_xy_range( roi )
-        
-        %Update X/Y. 
-        img_idx = frame2img(t,3);
-        Y = size(Img{img_idx},1);
-        X = size(Img{img_idx},2);
-        
-        x_range = roi(1): roi(1) + roi(3) - 1;
-        y_range = roi(2): roi(2) + roi(4) - 1;
-        %Check size of image. 
-        sel_x = x_range > 0 & x_range < X;
-        sel_y = y_range > 0 & y_range < Y;
-
-        if sum(sel_x)==0 || sum(sel_y)==0
-            disp('bad roi')
-            return
-        end
-
-        x_range = x_range(sel_x);
-        y_range = y_range(sel_y);   
-        
-    end
-    
-    function update_roi( roi )
+    function update_roi( new_roi )
         
         %If no input variable, reset to no ROI. 
         if nargin < 1
@@ -602,17 +599,31 @@ TOOL.Visible='on';
             AX.XLim(2) = X;
             AX.YLim(2) = Y;
         else            
+
+            x_range = new_roi(1): new_roi(1) + new_roi(3) - 1;
+            y_range = new_roi(2): new_roi(2) + new_roi(4) - 1;
+            %Check size of image. 
+            sel_x = x_range > 0 & x_range < X;
+            sel_y = y_range > 0 & y_range < Y;
             
-            update_xy_range( roi )
-            
-            step.roi = roi;
+            if sum(sel_x)==0 | sum(sel_y)==0
+                disp('bad roi')
+                return
+            end
+            x_range = x_range(sel_x);
+            y_range = y_range(sel_y);
+
+            step.roi = new_roi;
+
             AX = findobj( MAIN.Children, 'Type','Axes');
             AX.XLim(2) = length(x_range);
             AX.YLim(2) = length(y_range);
             
             %%% There might be a bug when the plot  was zoomed in and ROI was
             %%% updated. 
-            
+
+
+
             %Shift if using ROI. 
             shift_vec = [-step.roi(1),-step.roi(2)];
         end
@@ -652,7 +663,7 @@ TOOL.Visible='on';
     end
 
 % -=< Time slider callback function >=-
-    function TimeSlider(object, event)
+    function TimeSlider(object,event)
         t = round(get(object,'Value'));
         setappdata(0,'t',t);
         
@@ -667,16 +678,14 @@ TOOL.Visible='on';
         else
             set(time_txthand, 'String', '2D image');
         end
-        
         DrawTracks
-        
-        % Add drawspots here so its' called everytime DrawTracks is. 
+        %Add drawspots here so its' called everytime DrawTracks is. 
         DrawCells(states)
         DrawSpots
     end
 
 % -=< Mouse scroll wheel callback function >=-
-    function mouseScroll(object, eventdata)
+    function mouseScroll (object, eventdata)
         MAIN;
         UPDN = eventdata.VerticalScrollCount;
         t = t - UPDN;
@@ -850,7 +859,7 @@ TOOL.Visible='on';
     end
 
 %% Text click call back function. Define so we can use global sel_vec...
-    function textcallback(hobj,event)
+    function textcallback(hobj, event)
         MAIN;
         %Get current gui states.
         states=getappdata(0,'states');
@@ -858,12 +867,9 @@ TOOL.Visible='on';
         %Get current flagged states. 
         flagged = getappdata(0,'flagged');
         if isempty(flagged)
-            flagged=struct('tracks',[],'cells',[]);
+            flagged=struct('cells',[]);
         end
-        
-        if ~isfield(flagged,'tracks')
-            flagged.tracks=[];
-        end
+
         if ~isfield(flagged,'cells')
             flagged.cells=[];
         end
@@ -875,28 +881,34 @@ TOOL.Visible='on';
         cell_id  = track_matrix(track_id,t);
         
         %Get all time points for this track. 
-        t_sel       = track_matrix(track_id,:) > 0;
+        t_sel = track_matrix(track_id,:) > 0;
         
         %If we are flagging tracks, change all cells in track
         if states.flag_tracks 
             
-            track_status = track_sel_vec(track_id);
-
+            cell_status = cell_sel_mat(track_id,t);
+            
             %Switch status. 
-            if track_status 
+            if cell_status 
                 %Switch off
                 cell_sel_mat(track_id,t_sel) = 0; 
                 hobj.Color = c_vec(1,:);
                 track_sel_vec(track_id) = 0;
-                %Add to flagged structure. 
-                flagged.tracks = [flagged.tracks,track_id]; 
+                these_frames = find(t_sel);
+                these_cell_ids = track_matrix(track_id,t_sel);
+                
+                %Add cells to flagged structure. 
+                flagged.cells = [flagged.cells; these_frames', these_cell_ids']; 
             else
                 %Switch on. 
-                cell_sel_mat(track_id,t_sel) = 1;
+                cell_sel_mat(track_id, t_sel) = 1;
                 hobj.Color = c_vec(2,:);
                 track_sel_vec(track_id) = 1;
+                these_frames = find(t_sel);
+                these_cell_ids = track_matrix(track_id, t_sel);
+                
                 %Remove from flagged structure. 
-                flagged.tracks= flagged.tracks( flagged.tracks~= track_id );
+                flagged.cells = setdiff(flagged.cells,[these_frames',these_cell_ids'],'rows');
             end
 
             %Note the time. 
@@ -1011,7 +1023,7 @@ TOOL.Visible='on';
             
             this_track = tracks{ track_id };
             data =obj.get_track_data( 'track', this_track );
-            sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
+            sig = cat(1,data.nuc_mean); %./ cat(1,data.cyto_mean);
             %sig = [data.nuc_area]';
             title(['Track: ',num2str(track_id)]);
             %Plot the trace. 
@@ -1116,6 +1128,8 @@ TOOL.Visible='on';
                     if( spot_sel_vec( result_id ))
                         SC=[125,42,142]/255; %Purple...
                         SC=[172,156,255]/255;
+                        SC=[113,191,110]./255;
+
                         h = viscircles(pos([2,1])+shift_vec,10,'color',SC,'EnhanceVisibility',0,'linewidth',4);
                     else
                         h = viscircles(pos([2,1])+shift_vec,10,'color','r');
@@ -1168,13 +1182,12 @@ TOOL.Visible='on';
             for p_ = 1:length(on_tracks)
                 
                 frames = tracks{on_tracks(p_)}(:,1);
-                cell_id = tracks{on_tracks(p_)}(frames==t,2);
+                cell_id = tracks{on_tracks(p_)}(frames==t, 2);
                 
                 %Plot contour. 
                 line_color=[148,47,142]./255;
                 %line_color=[113,191,110]./255;
                 %line_color=[0,0,0];
-                
                 plot(cells{t}{cell_id}(:,1)+shift_vec(1),cells{t}{cell_id}(:,2)+shift_vec(2),':','linewidth',6,'color',[line_color,0.9]);
             end
             
@@ -1204,6 +1217,22 @@ TOOL.Visible='on';
         
         hold off
 
+    end
+
+% -=< Arrow key changes thresh value  >=-
+
+    function [] = fh_kpfcn(H,E)          
+    % Figure keypressfcn
+    switch E.Key
+        case 'd'
+            
+            TB_gd = guidata(TOOL);            
+            TB_gd.draw_cells()
+            
+            
+            
+        %otherwise  
+    end
     end
 
 end
@@ -1239,4 +1268,6 @@ Img = zeros(Y,X,Z);
     end
 
 end
+
+%% Key pressing. 
 

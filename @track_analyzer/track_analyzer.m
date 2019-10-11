@@ -245,20 +245,40 @@ classdef track_analyzer
             cells= cell(length(seg_files),1);
             disp_str = '';
             for i=1:length(seg_files)
-                tmp = load( seg_files{i},'frame_obj');
+                load( seg_files{i},'frame_obj');
 
                 try
 
-                    cells{i} = tmp.frame_obj.contours;
+                    cells{i} = frame_obj.contours;
                 catch
 
-                    if isfield(tmp.frame_obj,'PixelIdxList')             
-                        cells{i} = tmp.frame_obj.PixelIdxList;
+                    if isfield(frame_obj,'PixelIdxList')             
+                        %Trace boundaries. 
+                        if length(size(frame_obj.BW))==3
+                            BW = max(frame_obj.BW,[],3);
+                            ctrs = cat(1,frame_obj.centroids{:});
+                            ctrs = ctrs(:,1:2);
+                        else
+                            BW = frame_obj.BW;
+                            ctrs = cat(1,frame_obj.centroids{:});
+                        end
+                        C = bwboundaries(BW);
+                        if ~isempty(C)
+                            C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
+                            c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
+                            %Match centroids. 
+                            D = pdist2(cat(1,c_ctr{:}),ctrs);
+                            [~,idx] = min(D);
+                            frame_obj.contours=C( idx );
+                            cells{i} = frame_obj.contours;
+                            % Update frame_obj. 
+                            save(seg_files{i},'frame_obj','-append');
+                        end
                     else
                         cells{i} = [];
                     end
                 end
-                if exist(disp_str,'var'); clearString(disp_str); end;
+                if exist(disp_str,'var'); clearString(disp_str); end
                 disp_str=['loading frame ',num2str(i)];
                 disp(disp_str);
             end          
