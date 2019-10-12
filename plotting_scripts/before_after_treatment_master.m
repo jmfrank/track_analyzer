@@ -36,7 +36,7 @@ for i = 1:length(pairs)
     params.MinSumInt = MinSumInt(i);
     
     % Send to master script to get fraction of cells. 
-    [f_curves,t_vals, INT]  = transcription_dynamics_fraction_master( info, groups, labels, step, params);
+    [f_curves, t_vals, INT]  = transcription_dynamics_fraction_master( info, groups, labels, step, params);
     % Get pulse durations. 
     PULSE = transcription_dynamics_pulse_master(info,groups,labels,step,params);
     

@@ -7,7 +7,7 @@ function exp_info = get_exp_info(info)
 %Need to figure out which computer we are using. I.e. which path to
 %dropbox. 
 try
-    full_file = fullfile('/Users/franklin/Dropbox/',info.csv_file)
+    full_file = fullfile('/Users/franklin/Dropbox/',info.csv_file);
     %Read csv file
     [fid message ] = fopen(strtrim(full_file));
     data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');

@@ -27,33 +27,30 @@ data = gen_data_struct( n_cells );
 
 
 %Look too see if a max-p image exists. 
-if( exist( obj.exp_info.max_p_img,'file' ) )
-
-    %Just one image. 
-    fname = obj.exp_info.max_p_img;
-
-    [reader,X,Y,Z,C,T] = bfGetReader(fname);
-    this_img = bfopen(fname);
-
-    frame_range = [1:T]';
-    img_val = 1.*ones(length(frame_range),1);
-    %Add to frame2img. 
-    frame2img=[frame_range,frame_range, img_val];
-
-    Img = zeros(Y,X,T);
-    for t = 1:T
-        plane = get_planesZCT(reader,Z,params.channel,t);
-        Img(:,:,t) = this_img{1}{plane,1};
-    end
-    
-    %Close reader
-    reader.close();
-    
-else
-    error('missing max-p img');
-
+if( ~exist( obj.exp_info.max_p_img,'file' ) )
+    obj.create_ds_time_series(params);
 end
 
+
+%Just one image. 
+fname = obj.exp_info.max_p_img;
+
+[reader,X,Y,Z,C,T] = bfGetReader(fname);
+this_img = bfopen(fname);
+
+frame_range = [1:T]';
+img_val = 1.*ones(length(frame_range),1);
+%Add to frame2img. 
+frame2img=[frame_range,frame_range, img_val];
+
+Img = zeros(Y,X,T);
+for t = 1:T
+    plane = get_planesZCT(reader,Z,params.channel,t);
+    Img(:,:,t) = this_img{1}{plane,1};
+end
+
+%Close reader
+reader.close();
 
 
 for t = 1:T
@@ -114,7 +111,6 @@ obj.nuc_cyto_data.(channel_str) = data;
        
 if(debug);hold off;end;
 
-obj.nuc_cyto_calc = true;
 obj.tags = []; %Clear tags
 
 

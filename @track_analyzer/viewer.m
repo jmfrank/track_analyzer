@@ -75,11 +75,7 @@ if( iscell( obj.exp_info.img_file ))
     
     %Keep track of which img is 'on'. 
     states.img_idx = 1;
-    
-    %Loop over images. Fill in a cell array. 
-    f_count = 0;
-    frame2img = []; %Frame count.
-    
+       
     %Check to make sure img_file and max_p_img are the same length. 
     if length(obj.exp_info.img_file) ~= length(obj.exp_info.max_p_img)
         error('Img file and max-p file list are different sizes.');
@@ -143,7 +139,7 @@ else
         img_val = 1.*ones(length(frame_range),1);
         %Add to frame2img. 
         frame2img=[frame_range,frame_range, img_val];
- 
+
         if C > 1
             %load one frame at a time. 
             Img{1} = zeros(Y,X,T);
@@ -163,6 +159,9 @@ else
                 end
             end
         end
+        
+        f_count = T;
+
         
         %Close reader
         reader.close();
@@ -196,6 +195,9 @@ else
             error('no maxp available');
 
         end
+        
+        f_count = T;
+
     end
 
 end
@@ -248,11 +250,27 @@ end
 
 %Look for existing flags. 
 try
-    flags = obj.exp_info.flagged.tracks;
-    %Go ahead and flag these tracks. 
-    track_sel_vec(flags) = 0;
+    flagged = obj.exp_info.flagged;
+    disp('Found existing flags.')
+    setappdata(0,'flagged',flagged)
     
-    %Add spot track flagging...
+    % Check if cells and/or tracks flagged. 
+    if ~isempty(flagged.cells)
+
+        %Loop over flagged cells. 
+        for i = 1:size(flagged.cells,1)
+            this_time = flagged.cells(i,1);
+            this_cell_id = flagged.cells(i,2);
+
+            % Find the track at this time. 
+            this_track = track_matrix(:,this_time)==this_cell_id;
+
+            % Set this cell off. 
+            cell_sel_mat(this_track, this_time) = 0;
+
+        end
+    end
+    
 end
 
 %Look for existing division data
@@ -456,7 +474,7 @@ set(MAIN, 'ButtonDownFcn', @mouseClick);
 %this was doing ? 
 set(MAIN,'WindowButtonUpFcn', @mouseRelease)
 set(MAIN,'ResizeFcn', @figureResized)
-
+set(MAIN,'keypressfcn',@fh_kpfcn);
 %Run track/spot drawing. Needs to be after buttondown Fcn set on Main
 %because text are children of Main? 
 DrawTracks
@@ -486,22 +504,19 @@ TOOL.Visible='on';
         flagged = getappdata(0,'flagged');
         states  = getappdata(0,'states');
         
-        if states.flag_cells
+        if states.flag_cells || states.flag_tracks
             
             flagged.cells=[];
-            
-        elseif states.flag_tracks
-            
-            flagged.tracks=[];
         
         elseif states.flag_spots
             
             flagged.spots=[];
         end
+        
         setappdata(0,'flagged',flagged);
-    DrawTracks
-    DrawCells(states)
-    DrawSpots  
+        DrawTracks
+        DrawCells(states)
+        DrawSpots  
     end
 
 
@@ -844,7 +859,7 @@ TOOL.Visible='on';
     end
 
 %% Text click call back function. Define so we can use global sel_vec...
-    function textcallback(hobj,event)
+    function textcallback(hobj, event)
         MAIN;
         %Get current gui states.
         states=getappdata(0,'states');
@@ -852,12 +867,9 @@ TOOL.Visible='on';
         %Get current flagged states. 
         flagged = getappdata(0,'flagged');
         if isempty(flagged)
-            flagged=struct('tracks',[],'cells',[]);
+            flagged=struct('cells',[]);
         end
-        
-        if ~isfield(flagged,'tracks')
-            flagged.tracks=[];
-        end
+
         if ~isfield(flagged,'cells')
             flagged.cells=[];
         end
@@ -869,28 +881,34 @@ TOOL.Visible='on';
         cell_id  = track_matrix(track_id,t);
         
         %Get all time points for this track. 
-        t_sel       = track_matrix(track_id,:) > 0;
+        t_sel = track_matrix(track_id,:) > 0;
         
         %If we are flagging tracks, change all cells in track
         if states.flag_tracks 
             
-            track_status = track_sel_vec(track_id);
-
+            cell_status = cell_sel_mat(track_id,t);
+            
             %Switch status. 
-            if track_status 
+            if cell_status 
                 %Switch off
                 cell_sel_mat(track_id,t_sel) = 0; 
                 hobj.Color = c_vec(1,:);
                 track_sel_vec(track_id) = 0;
-                %Add to flagged structure. 
-                flagged.tracks = [flagged.tracks,track_id]; 
+                these_frames = find(t_sel);
+                these_cell_ids = track_matrix(track_id,t_sel);
+                
+                %Add cells to flagged structure. 
+                flagged.cells = [flagged.cells; these_frames', these_cell_ids']; 
             else
                 %Switch on. 
-                cell_sel_mat(track_id,t_sel) = 1;
+                cell_sel_mat(track_id, t_sel) = 1;
                 hobj.Color = c_vec(2,:);
                 track_sel_vec(track_id) = 1;
+                these_frames = find(t_sel);
+                these_cell_ids = track_matrix(track_id, t_sel);
+                
                 %Remove from flagged structure. 
-                flagged.tracks= flagged.tracks( flagged.tracks~= track_id );
+                flagged.cells = setdiff(flagged.cells,[these_frames',these_cell_ids'],'rows');
             end
 
             %Note the time. 
@@ -1005,7 +1023,7 @@ TOOL.Visible='on';
             
             this_track = tracks{ track_id };
             data =obj.get_track_data( 'track', this_track );
-            sig = cat(1,data.nuc_mean) ./ cat(1,data.cyto_mean);
+            sig = cat(1,data.nuc_mean); %./ cat(1,data.cyto_mean);
             %sig = [data.nuc_area]';
             title(['Track: ',num2str(track_id)]);
             %Plot the trace. 
@@ -1162,13 +1180,12 @@ TOOL.Visible='on';
             for p_ = 1:length(on_tracks)
                 
                 frames = tracks{on_tracks(p_)}(:,1);
-                cell_id = tracks{on_tracks(p_)}(frames==t,2);
+                cell_id = tracks{on_tracks(p_)}(frames==t, 2);
                 
                 %Plot contour. 
                 line_color=[148,47,142]./255;
                 %line_color=[113,191,110]./255;
                 %line_color=[0,0,0];
-                
                 plot(cells{t}{cell_id}(:,1)+shift_vec(1),cells{t}{cell_id}(:,2)+shift_vec(2),':','linewidth',6,'color',[line_color,0.9]);
             end
             
@@ -1198,6 +1215,22 @@ TOOL.Visible='on';
         
         hold off
 
+    end
+
+% -=< Arrow key changes thresh value  >=-
+
+    function [] = fh_kpfcn(H,E)          
+    % Figure keypressfcn
+    switch E.Key
+        case 'd'
+            
+            TB_gd = guidata(TOOL);            
+            TB_gd.draw_cells()
+            
+            
+            
+        %otherwise  
+    end
     end
 
 end
@@ -1233,4 +1266,6 @@ Img = zeros(Y,X,Z);
     end
 
 end
+
+%% Key pressing. 
 
