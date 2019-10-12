@@ -11,7 +11,7 @@ omeMeta = reader.getMetadataStore();
 try
     tmp = [omeMeta.getPixelsPhysicalSizeX(0).value(ome.units.UNITS.MICROMETER),...
         omeMeta.getPixelsPhysicalSizeY(0).value(ome.units.UNITS.MICROMETER),omeMeta.getPixelsPhysicalSizeZ(0).value(ome.units.UNITS.MICROMETER)];
-    obj.exp_info.pixel_size = double(tmp);
+    obj.exp_info.pixel_size = double(tmp)';
 catch
     
     %Need to  supply the pixel_size manually.

@@ -108,6 +108,7 @@ switch data_type
         [a,b,c] = fileparts( exp_info.img_file );
         seg_dir = fullfile(a,[b,'/']);
         if( ~exist( seg_dir, 'dir') )
+            disp(seg_dir)
             mkdir( seg_dir );
         end
          exp_info.nuc_seg_dir = seg_dir;
@@ -119,7 +120,7 @@ switch data_type
     case 'pre_img_frap'
         
         exp_info.pre_img_file    = fullfile(base_dir,all_info{1},all_info{2});
-        [a,b,c] = fileparts( exp_info.pre_img_file );
+        [a,b,~] = fileparts( exp_info.pre_img_file );
         seg_dir = fullfile(a,[b,'/']);
         if( ~exist( seg_dir, 'dir') )
             mkdir( seg_dir );
@@ -129,11 +130,13 @@ switch data_type
 
         
         exp_info.img_file    = fullfile(base_dir,all_info{1},all_info{3});
+        
         [a,b,c] = fileparts( exp_info.img_file );
         seg_dir = fullfile(a,[b,'/']);
         if( ~exist( seg_dir, 'dir') )
             mkdir( seg_dir );
         end
+        
         exp_info.nuc_seg_dir = seg_dir;
         %Max projection file. 
         exp_info.max_p_img = fullfile(a,[b,'_maxp.tif']);

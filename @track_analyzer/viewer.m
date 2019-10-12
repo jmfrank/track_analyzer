@@ -252,11 +252,13 @@ end
 try
     flagged = obj.exp_info.flagged;
     disp('Found existing flags.')
+
     setappdata(0,'flagged',flagged)
     
     % Check if cells and/or tracks flagged. 
     if ~isempty(flagged.cells)
 
+        disp('Found existing flags.')
         %Loop over flagged cells. 
         for i = 1:size(flagged.cells,1)
             this_time = flagged.cells(i,1);
@@ -1128,6 +1130,8 @@ TOOL.Visible='on';
                     if( spot_sel_vec( result_id ))
                         SC=[125,42,142]/255; %Purple...
                         SC=[172,156,255]/255;
+                        SC=[113,191,110]./255;
+
                         h = viscircles(pos([2,1])+shift_vec,10,'color',SC,'EnhanceVisibility',0,'linewidth',4);
                     else
                         h = viscircles(pos([2,1])+shift_vec,10,'color','r');

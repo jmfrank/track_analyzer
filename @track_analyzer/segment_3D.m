@@ -162,7 +162,7 @@ disp(['Started frame: ',num2str(t)])
     
     %Reduce i for debugging
     if(step.debug)
-       % I = I(1:600,1:600,:);
+        I = I(650:750,375:475,:);
     end
     Ie = zeros(size(I));
     G = Ie; Diff_im = Ie; 
@@ -441,7 +441,6 @@ disp(['Started frame: ',num2str(t)])
             mask = imextendedmin(imgDist,params.h_min_depth,params.h_min_conn); %Seems like smaller neighborhood works better?
             imgDist = imimposemin(imgDist,mask);
             imgDist(~sub_bw) = -inf;
-            
             
             %Perform marked watershed
             imgLabel = watershed(imgDist);
