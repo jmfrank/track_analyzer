@@ -21,8 +21,6 @@ else
     frames = frames;
 end
 
-frames
-
 %Get the image size of this series. 
 size_x = reader.getSizeX;
 size_y = reader.getSizeY;

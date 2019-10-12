@@ -39,7 +39,6 @@ T = reader.getSizeT;
  %Get step.debug
 if(step.debug)
     params
-    %T = 1;
 end  
 
 %% Generate im_info structure
@@ -214,6 +213,7 @@ disp(['Started frame: ',num2str(t)])
        
     end
     
+    %Subtract a background value. 
     if(step.subtract_bg)
         sel = I < params.bg;
         I(sel) = 0;
@@ -276,7 +276,6 @@ disp(['Started frame: ',num2str(t)])
     BW  = J >= thrshlevel;
  
     if step.debug
-        
        imshow3D(J) 
     end
     

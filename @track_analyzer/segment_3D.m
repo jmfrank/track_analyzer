@@ -22,8 +22,7 @@ params = default_params(params);
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
 reader = bfGetReader(obj.exp_info.img_file);
-series = 1;
-
+series = 1; % Need to further define if multiple series in bf format. 
 
 %Get the image size of this series. 
 
@@ -32,7 +31,6 @@ T = reader.getSizeT;
  %Get step.debug
 if(step.debug)
     params
-    T = 1;
 end  
 
 %% Generate im_info structure
@@ -76,11 +74,11 @@ if nargin==4
 end
 
 
-%Now run loops
+%Now run loops. Params is passed around in case things change from user. 
 disp('New frames to calculate:')
 disp(num2str(new_ts))
 for t = new_ts
-    inner_function( exp_info, Z_cell{t},params,step,t, reader)
+    params = inner_function( exp_info, Z_cell{t},params,step,t, reader)
 end
 
 %Close reader at very end. 
@@ -95,7 +93,7 @@ obj.save;%Auto-save.
 end
 
 %% Inner function to run 
-function inner_function( exp_info, planes, params, step, t, reader)
+function params = inner_function( exp_info, planes, params, step, t, reader)
     
 %Display 
 disp(['Started frame: ',num2str(t)])
@@ -209,8 +207,7 @@ disp(['Started frame: ',num2str(t)])
         end
         
         I = I_sm.*65535;
-        
-        
+                
     end
     
     %Subtract a background value. 
@@ -259,9 +256,8 @@ disp(['Started frame: ',num2str(t)])
     
     %Simple binarization. 
     BW  = J >= thrshlevel;
- 
+    
     if step.debug
-        
        imshow3D(J) 
     end
     
@@ -394,12 +390,12 @@ disp(['Started frame: ',num2str(t)])
     end
     
     %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF.
-    if( step.watershed)
+    if( step.watershed3D)
         disp('Starting watershed')
         tic
         
         %Distance transform scales. 
-        scales = [exp_info.pixel_size(1:2),exp_info.pixel_size(3)*params.z_effect];
+        scales = [exp_info.pixel_size(1),exp_info.pixel_size(2),exp_info.pixel_size(3)*params.z_effect];
 
         %Counter of new objects found by watershedding
         new_objects = 0;
@@ -546,18 +542,18 @@ disp(['Started frame: ',num2str(t)])
         frame_obj.contours=C( idx );
     end
 
-        %Add final binarized image to frame_obj for save keeping
-        frame_obj.BW = BW;
+    %Add final binarized image to frame_obj for save keeping
+    frame_obj.BW = BW;
 
-        %Save frame_obj as done before. 
-        fname = ['frame_',sprintf('%04d',t),'.mat'];
-        if(~exist(exp_info.nuc_seg_dir,'dir'))
-            mkdir(exp_info.nuc_seg_dir)
-        end
-        parsave([exp_info.nuc_seg_dir,fname],frame_obj)
-        if exist('disp_str','var'); clearString(disp_str); end
-        disp_str = ['Finished frame:     ',num2str(t)];
-        disp(disp_str)
+    %Save frame_obj as done before. 
+    fname = ['frame_',sprintf('%04d',t),'.mat'];
+    if(~exist(exp_info.nuc_seg_dir,'dir'))
+        mkdir(exp_info.nuc_seg_dir)
+    end
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj)
+    if exist('disp_str','var'); clearString(disp_str); end
+    disp_str = ['Finished frame:     ',num2str(t)];
+    disp(disp_str)
         
 end
 
@@ -583,5 +579,60 @@ for i = 1:length(liar_list)
     text(ctr(1),ctr(2),num2str( liar_list(i)),'color','g')
 end
 hold off
+
+end
+
+%% defaults. 
+function step = default_step( step )
+
+%List of all default parameters. 
+dstep.use_specific_img=0;
+dstep.FORCE_ALL_FRAMES=1;
+dstep.debug=0;
+dstep.subtract_bg=0;
+dstep.CLAHE=0;
+dstep.MeanFilter=0;
+dstep.threshold_by_histogram=0;
+dstep.nuc_thresh = 0;
+dstep.iterative_thresholding=0;
+dstep.channel=1;
+dstep.merger=0;
+dstep.gaussian_filter = 0;
+dstep.imclose = 0;
+
+S  = fieldnames( dstep );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(step,S{i})
+        step.(S{i}) = dstep.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dstep.(S{i}))]);
+    end
+end
+
+end
+
+function params = default_params( params )
+
+
+
+%List of all default parameters. 
+dparams.view_channel=1;
+dparams.channel=1;
+S  = fieldnames( dparams );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(params,S{i})
+        params.(S{i}) = dparams.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dparams.(S{i}))]);
+    end
+end
+
+
 
 end
