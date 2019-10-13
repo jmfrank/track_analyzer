@@ -390,7 +390,7 @@ disp(['Started frame: ',num2str(t)])
     end
     
     %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF.
-    if( step.watershed3D)
+    if( step.watershed)
         disp('Starting watershed')
         tic
         
