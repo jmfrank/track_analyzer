@@ -67,21 +67,22 @@ for i = 1:length(IMG_files)
     %Apparently we don't need to re-order to 5D image with xy? Using order: XYTZC
 
     %temporary save to local disk. 
-    try
-        out_file_name = fullfile('/home/jan/TEMP/',[fname,'_maxp','.tif']);
-        %BF exporter. 
-        bfsave( out_img, out_file_name,'XYTZC' );
-    catch
-        out_file_name=fullfile('/Users/franklin/Desktop/TEMP/',[fname,'_maxp','.tif']);
-        %BF exporter. 
-        bfsave( out_img, out_file_name,'XYTZC' );
-    end
+    %try
+    %    out_file_name = fullfile('/home/jan/TEMP/',[fname,'_maxp','.tif']);
+    %    %BF exporter. 
+    %    bfsave( out_img, out_file_name,'XYTZC' );
+    %catch
+    %    out_file_name=fullfile('/Users/franklin/Desktop/TEMP/',[fname,'_maxp','.tif']);
+    %    %BF exporter. 
+    %    bfsave( out_img, out_file_name,'XYTZC' );
+    %end
 
     %Final location
     final_destination = fullfile(d,[fname,'_maxp','.tif']);
 
+    bfsave( out_img, final_destination, 'XYTZC' );
     %Now move to final destination. 
-    movefile(out_file_name, final_destination);
+    %movefile(out_file_name, final_destination);
     
     %Out_list. 
     max_p_img_list{i} = final_destination;
