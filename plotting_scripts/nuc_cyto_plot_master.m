@@ -166,7 +166,8 @@ for g = 1:length(groups)
     mean_sig = sig_mat ./ counts;
     
     max_frame = min(max_frame, step.FrameRange(end));
-    frames = [0:max_frame-1]*obj.exp_info.frame_time.*step.TIME_CONVERSION;
+    %frames = [0:max_frame-1]*obj.exp_info.frame_time.*step.TIME_CONVERSION;
+    frames = obj.exp_info.time_series(1:max_frame)*step.TIME_CONVERSION;
     
     if(step.plot)
         if SP
@@ -213,6 +214,8 @@ if(step.plot)
     end
     %Plotting options
     set(gca,'fontsize',20,'linewidth',2)
+    main_line
+    labels
     l = legend(main_line,labels);
     set(l,'box','off')
     

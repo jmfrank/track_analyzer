@@ -179,12 +179,9 @@ disp(['Started frame: ',num2str(t)])
         %I = I(1:300,1:300,:);
     end
     
-
-    
     Ie = zeros(size(I));
     G = Ie; Diff_im = Ie; Fim = Ie; Mag_fim = Ie; Mag_Lim = Ie; Det_hessian = Ie;
     Sum = Ie; Multi = Ie; J = Ie;
-     
     
     %% PRE-PROCESSING STEPS. Filters, and removing outliers. 
        
@@ -316,14 +313,14 @@ disp(['Started frame: ',num2str(t)])
     elseif step.threshold_by_histogram 
         
        
-        	if length(params.percentile)>1
-                p_val = params.percentile(t);
-            else
-                p_val = params.percentile;
-            end
-            P = prctile(J(:),p_val);
-            thrshlevel = P;
-            BW  = J >= thrshlevel;
+        if length(params.percentile)>1
+            p_val = params.percentile(t);
+        else
+            p_val = params.percentile;
+        end
+        P = prctile(J(:),p_val);
+        thrshlevel = P;
+        BW  = J >= thrshlevel;
     
     %Simple binarization. 
     else
@@ -392,7 +389,40 @@ disp(['Started frame: ',num2str(t)])
         BW = logical(new_BW);
     end
 
-    %Now fill in the holes. 
+    %% Looking for high intensity outliers. 
+    if(step.FilterOutliers)
+       
+        %Estimate background value. 
+        bg_img = I(~BW);
+        mean_bg_value = mean(bg_img(:));
+        
+        %Find outliers using a high threshold. 
+        high = I > params.OutlierThreshold;
+        
+        %Dilate 
+        se = strel('rectangle',params.MeanFilterNeighborhood(1:2));
+        dil = imdilate(high, se);
+        
+        %Collect region info. 
+        stats = regionprops(logical(dil),'PixelIdxList','Image');
+        
+        %Change high-intensity regions to NaN or mean bg value? 
+        all_idx = cat(1,stats.PixelIdxList);
+        I(all_idx) = mean_bg_value;
+        
+        %Fill in missing data with inpaintn
+        %I = inpaintn(I);
+        
+        %Alternatively, we can fill in with background noise?
+        if(step.debug)
+            imshow3D(I);
+        end
+        
+        BW(all_idx) = 0;
+    end
+    
+    
+    %% Now fill in the holes. 
     BW = imfill(BW,'holes');
 
     %Collect stats. 
@@ -409,38 +439,7 @@ disp(['Started frame: ',num2str(t)])
     BW(idx) = 1;
     BW = logical(BW);
     
-    %% Looking for high intensity outliers. 
-    if(step.FilterOutliers)
-       
-        %Estimate background value. 
-        bg_img = I(~BW);
-        mean_bg_value = mean(bg_img(:));
-        
-        %Find outliers using a high threshold. 
-        high = I > params.OutlierThreshold;
-        
-        %Dilate 
-        se = strel('rectangle',params.MeanFilterNeighborhood );
-        dil = imdilate(high, se);
-        
-        %Collect region info. 
-        stats = regionprops(logical(dil),'PixelIdxList','Image');
-        
-        %Change high-intensity regions to NaN or mean bg value? 
-        all_idx = cat(1,stats.PixelIdxList);
-        I(all_idx) = mean_bg_value;
-        
-        %Fill in missing data with inpaintn
-        %I = inpaintn(I);
-        
-        %Alternatively, we can fill in with background noise?
-        if(step.debug)
-            imshow3D(I);
-            pause
-        end
-        
-        BW(all_idx) = 0;
-    end
+ 
     
     %% Connect regions, find objects that are are big enough to be doubles. 
 
