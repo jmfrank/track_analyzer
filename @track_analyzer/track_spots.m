@@ -11,8 +11,8 @@ end
 
 debug = 0;
 %Initialize tracks
-load(seg_files{1},'frame_obj');
-data.centroids = cat(1,frame_obj.fit.pos);
+data=load(seg_files{1},'frame_obj');
+data.centroids = cat(1,data.frame_obj.fit.pos);
 %Clear the tracks field. Start with 100 tracks.
 obj.spot_tracks = cell(100,1);
 
@@ -29,13 +29,11 @@ obj.spot_tracks = cell(100,1);
        obj.spot_tracks{i}   = [1,ids(i),data.centroids(i,:)];
     end
     %Inialize old_centroids
-    old_centroids = cell2mat(data.frame_obj.centroids(:));
+    old_centroids = data.centroids;
     old_centroid_loc = get_centroid_location(obj);
     %Add img files to data
     [a,b,c] = fileparts(seg_files{1});    
-    %Add cells to data
-    try obj.cells{1}  = data.frame_obj.refined_cells; end
-    
+
     %Now continue for all time points
     for i = 2:length(seg_files)
         display(['Analyzing frame: ',num2str(i)])
@@ -48,7 +46,7 @@ obj.spot_tracks = cell(100,1);
         try obj.cells{i}  = data.frame_obj.refined_cells;end
         
         %For each centroid part of frame i, see which centroid is closest
-        new_centroids = cell2mat(data.frame_obj.centroids(:)); 
+        new_centroids = cat(1,data.frame_obj.fit.pos); 
         %Create distance matrix
             % D = pdist2( X , Y ). D is a mx by my matrix with         
             %(i,j) = dist( x(i), y(j) )

@@ -63,10 +63,10 @@ for t = frames
         msk_img(:,:,i) = bfGetPlane(reader,this_plane);
         
         %Check if signal channel is same as seg_channel. 
-        if params.signal_channel==params.seg_channel
+        if params.sig_channel==params.seg_channel
             sig_img(:,:,i) = bfGetPlane(reader,this_plane);
         else
-            this_plane = reader.getIndex(i-1,params.signal_channel-1,t-1)+1;
+            this_plane = reader.getIndex(i-1,params.sig_channel-1,t-1)+1;
             sig_img(:,:,i) = bfGetPlane(reader,this_plane);
         end
         
@@ -184,7 +184,7 @@ for t = frames
     end
     
     %Now save the frame_obj. Saving to a channel specific field.
-    frame_obj.(['channel_',pad(num2str(params.signal_channel),2,'left','0')]) = data;
+    frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]) = data;
     save(seg_files{t},'frame_obj','-append')
 
     if(debug);pause;if(i < length(obj.img_files));clf(7);end;end

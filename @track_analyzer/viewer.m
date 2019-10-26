@@ -216,7 +216,7 @@ screen = get(0,'ScreenSize');
 
 %Set everything to the same figure. That way we can clear it before hand. 
 MAIN = figure(7);
-MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
+%MAIN.Position =  [0.75*screen(3) 0.75*screen(4) 0.24*screen(3) 0.24*screen(4)];
 
 %Set a tag for finding this gui 
 MAIN.Tag = 'Main';
@@ -1132,9 +1132,9 @@ TOOL.Visible='on';
                         SC=[172,156,255]/255;
                         SC=[113,191,110]./255;
 
-                        h = viscircles(pos([2,1])+shift_vec,10,'color',SC,'EnhanceVisibility',0,'linewidth',4);
+                        h = viscircles(pos([2,1])+shift_vec, 5, 'color', SC, 'EnhanceVisibility',0,'linewidth',4);
                     else
-                        h = viscircles(pos([2,1])+shift_vec,10,'color','r');
+                        h = viscircles(pos([2,1])+shift_vec, 5, 'color', 'r');
                     end
                     %Setting some properties of the circle so it's
                     %clickable

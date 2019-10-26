@@ -72,11 +72,15 @@ stats = regionprops(logical(BW),'Centroid','PixelIdxList');
 %Assignment
 spot_centroids = cat(1,stats.Centroid);
 cell_centroids = cat(1,frame_obj.centroids{:});
-if seg_dim == 2
+if seg_dim == 2 && length(size(BW))==2
+    D = pdist2(spot_centroids, cell_centroids);
+elseif seg_dim ==2 && length(size(BW)) ==3
     cell_centroids = [cell_centroids, h/2*ones(size(cell_centroids,1),1)];
+    D = pdist2(spot_centroids, cell_centroids);
+elseif seg_dim ==3 && length(size(BW))==3
+    D = pdist2(spot_centroids, cell_centroids);
 end
 
-D = pdist2(spot_centroids, cell_centroids);
 
 [~,assignment] = min(D,[],2);
     

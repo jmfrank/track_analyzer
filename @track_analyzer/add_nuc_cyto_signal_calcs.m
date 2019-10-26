@@ -85,7 +85,7 @@ end
     end
     
     %Remove empty entries. 
-    for c = 1:length(c)
+    for c = 1:length(channels)
         nuc_cyto_data.(channels{c}) = nuc_cyto_data.(channels{c})(1:count);
     end
     
