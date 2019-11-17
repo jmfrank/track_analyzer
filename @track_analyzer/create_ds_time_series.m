@@ -5,7 +5,9 @@
 function obj = create_ds_time_series(obj, params)
 
 debug = 0;
-
+if nargin<2
+    params.channel=1;
+end
 
 %Figure out how many img_files. 
 if iscell(obj.exp_info.img_file)

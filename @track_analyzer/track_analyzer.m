@@ -217,8 +217,8 @@ classdef track_analyzer
                 p.addParameter('track',[]);
                 p.parse(varargin{:});
 
-                idx = p.Results.idx;
-                track = p.Results.track;
+                idx     = p.Results.idx;
+                track   = p.Results.track;
                 channel = p.Results.channel;
             end
             

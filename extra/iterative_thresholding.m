@@ -123,7 +123,7 @@ p_range=[1:0.2:100];
 %Initialize. 
 thresh = params.thresh_start;
 params.prom_threshold=0.0003;
-params.maxPeakP = 0.25;
+params.maxPeakP = 0.3;
 go=1;
 
 while go

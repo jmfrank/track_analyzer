@@ -81,6 +81,8 @@ if ~isempty(obj.nuc_cyto_data)
         end
 end
 
+        
+        combine
 end
 
 

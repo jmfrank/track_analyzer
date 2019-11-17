@@ -43,6 +43,7 @@ series = 1;
 %Get the image size of this series. 
 size_x = reader.getSizeX;
 size_y = reader.getSizeY;
+size_z = reader.getSizeZ;
 
 %Get segmentation file names. 
 seg_files = obj.get_frame_files;
@@ -51,8 +52,8 @@ for t = frames
     display(['Analyzing mean signal of frame: ',num2str(t)])
     tic
     %Create empty image to fill up
-    msk_img = zeros(size_y,size_x,Z);
-    sig_img = zeros(size_y,size_x,Z);
+    msk_img = zeros(size_y,size_x,size_z);
+    sig_img = zeros(size_y,size_x,size_z);
     
     %Load the Frame_obj file associated with this image
     load(seg_files{t});
@@ -92,31 +93,55 @@ for t = frames
     %Loop over cells. 
     for j = 1:n_cells
         
-        %Get a 2D mask of this cell....
-        BW = zeros(size_y,size_x);
-        px = frame_obj.PixelIdxList{j};
-        BW(px) = 1;
-        %Get pixel coordinates. 
-        [px_Y,px_X] = ind2sub([size_y,size_x],px);
+        % If mask is 3D, then project into 2D. Get center from Z-location
+        % of 3D segmented cell.
+        if size_z > 1
+            BW = zeros(size_y,size_x,size_z);
+            px = frame_obj.PixelIdxList{j};
+            BW(px)=1;
+            % Max project.
+            BW = max(BW,[],3);
+            %Get pixel coordinates. 
+            [px_Y,px_X,px_Z] = ind2sub([size_y,size_x,size_z],px);
 
-        %Create mask. 
-        roi_bw_nuc = logical(BW);
+            %Create mask. 
+            roi_bw_nuc = logical(BW);
+            
+            idx = round(frame_obj.centroids{j}(3));
+            
+        %% Estimate z-plane from max intensity.
+        else
+
+            %Get a 2D mask of this cell....
+            BW = zeros(size_y,size_x);
+            px = frame_obj.PixelIdxList{j};
+            BW(px) = 1;
+            
+            %Get pixel coordinates. 
+            [px_Y,px_X] = ind2sub([size_y,size_x],px);
+
+            %Create mask. 
+            roi_bw_nuc = logical(BW);
+
+            % Figure out optimal z-section. 
+            %Get sub_img of nucleus. 
+            msk_range_y = [min(px_Y):max(px_Y)];
+            msk_range_x = [min(px_X):max(px_X)];
+            sub_nuc = msk_img(msk_range_y,msk_range_x,:);
+            sub_mask = roi_bw_nuc(msk_range_y,msk_range_x,:);
+            sub_mask = repmat( sub_mask,[1,1,Z]);
+            sub_nuc(~sub_mask) = NaN;
+
+            %Find mean signal in each plane. 
+            plane_vals = reshape(  mean( mean( sub_nuc,1,'omitnan'),2,'omitnan'),[1,Z]);
+
+            %Find index of max value <-i.e. the 'best' plane
+            [~,idx] = max(plane_vals);
+
+        end
         
-        %% Figure out optimal z-section. 
-        %Get sub_img of nucleus. 
-        msk_range_y = [min(px_Y):max(px_Y)];
-        msk_range_x = [min(px_X):max(px_X)];
-        sub_nuc = msk_img(msk_range_y,msk_range_x,:);
-        sub_mask = roi_bw_nuc(msk_range_y,msk_range_x,:);
-        sub_mask = repmat( sub_mask,[1,1,Z]);
-        sub_nuc(~sub_mask) = NaN;
-        
-        %Find mean signal in each plane. 
-        plane_vals = reshape(  mean( mean( sub_nuc,1,'omitnan'),2,'omitnan'),[1,Z]);
-        
-        %Find index of max value <-i.e. the 'best' plane
-        [~,idx] = max(plane_vals);
-        %Make a range of planes to use based on params.z_range
+
+        %% Make a range of planes to use based on params.z_range
         z_planes = idx-params.z_range: idx+params.z_range;
         %Need to adjust z-planes if they are outside of img
         if(z_planes(end) > Z)
@@ -127,6 +152,7 @@ for t = frames
             sel = z_planes >= 1;
             z_planes = z_planes(sel);
         end
+        
         
         %% Analyze the signal channel. 
         %Look at sub-region of image containing this cell. Need to exapnd
@@ -145,11 +171,20 @@ for t = frames
         %Tricky part: we need to ignore pixels belonging to other nuclei! 
             %All PixelIdx NOT belonging to cell j. 
             sel = [1:n_cells] ~= j;
-            ind = cat(1,frame_obj.PixelIdxList{sel});
-            not_this_cell = false(size_y,size_x);
-            not_this_cell(ind) = 1;
-            %3D mask.
-            not_this_cell = repmat(not_this_cell,[1,1,length(z_planes)]);       
+            % 3D case.
+            if size_z > 1
+                ind = cat(1,frame_obj.PixelIdxList{sel});
+                not_this_cell = false(size_y,size_x,size_z);
+                not_this_cell(ind) = 1;
+                not_this_cell = not_this_cell(:,:,z_planes);
+            else
+                ind = cat(1,frame_obj.PixelIdxList{sel});
+                not_this_cell = false(size_y,size_x);
+                not_this_cell(ind) = 1;
+                %3D mask.
+                not_this_cell = repmat(not_this_cell,[1,1,length(z_planes)]);
+            end
+            
             %Using not_this_cell as mask, replace all pixels with NaN. 
             sub_stack( not_this_cell ) = NaN;
             

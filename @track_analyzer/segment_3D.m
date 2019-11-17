@@ -178,13 +178,17 @@ disp(['Started frame: ',num2str(t)])
                 I = uint8(I);
             end
             tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
+        elseif image_bits==12
+            %Re-scale to 16bit?
+            I = I./4095.*65535;
+            tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
         elseif image_bits==16
             tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
         end
         
         %%%% This step might help bring everything to 16bit levels. Try
         %%%% manually changing bit size to 16 here. 
-        I = tmp.*65000;
+        I = tmp.*65535;
         image_bits = 16;
     end
 
