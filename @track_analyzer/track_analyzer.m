@@ -86,8 +86,41 @@ classdef track_analyzer
             end
         end
         
+        % Get the flagged tracks. 
+        function flagged = get_flagged_tracks(obj)
+            
+            % Look for flagged tracks or cells. 
+            if isfield(obj.exp_info.flagged,'tracks')
+                flagged = obj.exp_info.flagged.tracks;
+                warning('flagged tracks defined using old method!');
+                
+            elseif isfield(obj.exp_info.flagged,'cells')
+                
+                cells = obj.exp_info.flagged.cells;
+                flagged = []
+                %Loop over tracks. Look for flagged cells. 
+                for i = 1:length(obj.tracks)
+                    
+                    for c= 1:size(cells,1)
+                        
+                        if obj.tracks{i}(1,1) == cells(c,1) & obj.tracks{i}(1,2) == cells(c,2)
+                            flagged = [flagged, i];
+                        end
+                    end
+                end
+                
+            else
+                warning('no flagged objects')
+                flagged=[];
+                
+            end
+                
+                
+
+        end
+        
         %quick plot of track length distribution. 
-        function obj = distribution_track_length( obj, n );
+        function obj = distribution_track_length( obj, n )
             
             if nargin == 1
                 n=20;
@@ -237,7 +270,12 @@ classdef track_analyzer
         end
         
         %Return all cell contours. 
-        function cells = getCellContours(  obj )
+        function cells = getCellContours(  obj, params )
+            
+            if nargin < 2
+                params.seg_channel=1;
+            end
+            
             %Load frame obj. 
             seg_files = obj.get_frame_files;
             %Loop and load. 
@@ -248,8 +286,16 @@ classdef track_analyzer
                 load( seg_files{i},'frame_obj');
 
                 try
-
-                    cells{i} = frame_obj.contours;
+                    % Look for channel specific segmentation. 
+                    ch_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+                    if isfield(frame_obj,'contours')
+                        
+                        cells{i} = frame_obj.contours;
+                    elseif isfield(frame_obj,ch_str)
+                        cells{i} = frame_obj.(ch_str).contours;
+                    else
+                        error('Channel segmentation not defined');
+                    end
                 catch
 
                     if isfield(frame_obj,'PixelIdxList')             

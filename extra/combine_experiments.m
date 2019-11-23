@@ -81,8 +81,12 @@ if ~isempty(obj.nuc_cyto_data)
         end
 end
 
+%% Spot tracking. 
+combined = combined.track_spots_georgetown( combined.exp_info.spot_track_params );
+combined.save;
+    
+
         
-        combine
 end
 
 

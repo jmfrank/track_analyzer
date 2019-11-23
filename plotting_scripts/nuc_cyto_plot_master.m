@@ -1,7 +1,7 @@
 %% Master script for plotting nuc/cyto ratio over time. 
 %Can now handle nuc area trace plotting. 
 
-function nuc_cyto_plot_master( info, groups, labels,step, params,color_vec )
+function [errors] = nuc_cyto_plot_master( info, groups, labels,step, params,color_vec )
 
 %Get defaults. 
 step = default_step(step);

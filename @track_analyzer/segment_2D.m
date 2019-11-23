@@ -301,6 +301,16 @@ disp(['Started frame: ',num2str(t)])
         real_bg = mean(J(sel));
         %Threshold starting point. 
         params.thresh_start = prctile(J(:),p_val);
+            if params.thresh_start == 0
+                warning('Threshold too low');
+                %Calculate the first non-zero percentile and set as
+                %starting percentile. 
+                ps = prctile(J(:),[p_val:0.2:100]);
+                nonzero = ps > 0;
+                params.thresh_start = nonzero(1);
+                
+            end
+            
         %Incremental change in threshold. 
         params.increment = params.thresh_start*0.01;
         %First smooth image. 
@@ -539,7 +549,10 @@ disp(['Started frame: ',num2str(t)])
     end
 
     %% Create frame_obj and save. 
-    frame_obj = [];
+    frame_obj = struct;
+    % Image channel
+    channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
     %Add pixel list/centroid for each region to frame_obj
     counter = 1;
     rg_all = [];
@@ -565,8 +578,8 @@ disp(['Started frame: ',num2str(t)])
             
             %Fill in BW. 
             BW(stats(i).PixelIdxList) = 1;
-            frame_obj.PixelIdxList{counter} = stats(i).PixelIdxList;
-            frame_obj.centroids{counter}    = stats(i).Centroid;
+            frame_obj.(channel_str).PixelIdxList{counter} = stats(i).PixelIdxList;
+            frame_obj.(channel_str).centroids{counter}    = stats(i).Centroid;
             
             counter = counter + 1;
     end
@@ -576,17 +589,17 @@ disp(['Started frame: ',num2str(t)])
             C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
             c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
             %Match centroids. 
-            D = pdist2(cat(1,c_ctr{:}),cat(1,frame_obj.centroids{:}));
+            D = pdist2(cat(1,c_ctr{:}),cat(1,frame_obj.(channel_str).centroids{:}));
             [~,idx] = min(D);
-            frame_obj.contours=C( idx );
+            frame_obj.(channel_str).contours=C( idx );
         end
         
         
         
         %Add final binarized image to frame_obj for save keeping
-        frame_obj.BW = BW;
+        frame_obj.(channel_str).BW = BW;
 
-        %Save frame_obj as done before. 
+        %% Save frame_obj as done before. 
         fname = ['frame_',sprintf('%04d',t),'.mat'];
         if(~exist(exp_info.nuc_seg_dir,'dir'))
             mkdir(exp_info.nuc_seg_dir)
@@ -595,7 +608,7 @@ disp(['Started frame: ',num2str(t)])
         if isempty(stats)
             nFound=0;
         else
-            nFound=length(frame_obj.contours);
+            nFound=length(frame_obj.(channel_str).contours);
         end
         disp(['Finished frame:     ',num2str(t),' Found ',num2str(nFound),' cells.'])
 

@@ -222,7 +222,11 @@ for t = frames
     frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]) = data;
     save(seg_files{t},'frame_obj','-append')
 
-    if(debug);pause;if(i < length(obj.img_files));clf(7);end;end
+    if(debug)
+        pause
+        if(i < length(obj.img_files));clf(7);
+        end
+    end
     toc
 end
 

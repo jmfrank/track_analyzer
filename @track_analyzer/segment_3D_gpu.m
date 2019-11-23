@@ -181,6 +181,10 @@ disp(['Started frame: ',num2str(t)])
                 I = uint8(I);
             end
             tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
+        elseif image_bits==12
+            %Re-scale to 16bit?
+            I = I./4095.*65535;
+            tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
         elseif image_bits==16
             tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
         end
@@ -254,7 +258,7 @@ disp(['Started frame: ',num2str(t)])
     [L_imyx, L_imyy] = gaussgradient2D_sep(imy,sigmagradient);
 
     
-    Mag_Lim = L_imxx + L_imyy;% + L_imxy + L_imyx; % + L_imzz;
+    Mag_Lim = L_imxx + L_imyy; % + L_imxy + L_imyx; % + L_imzz;
     Mag_Lim = Mag_Lim.*(Mag_Lim>0);
     
     Det_hessian = L_imxx.*L_imyy - L_imxy.*L_imyx;
@@ -344,12 +348,20 @@ disp(['Started frame: ',num2str(t)])
         new_BW = gpuArray(BW);
             
     end
+    
+    
+    pad_size = 60;
 
     %Now fill in some holes. 
     for i = 1:1:ZSlicesinStack
         %Also fill holes laterally. Vertical holes can be
         %problematic if we just to imfill with 3D stack
-        new_BW(:,:,i) = imfill(new_BW(:,:,i),'holes');
+        
+        %first pad 
+        pad_plane = padarray(new_BW(:,:,i),[pad_size,pad_size],'symmetric','both');
+        pad_plane_fill = imfill(pad_plane,'holes');
+        
+        new_BW(:,:,i) = pad_plane_fill(pad_size+1:end-pad_size, pad_size+1: end-pad_size);
     end
     
     %Collect stats again. 
@@ -530,7 +542,10 @@ disp(['Started frame: ',num2str(t)])
     end
 
     %% Create frame_obj and save. 
-    frame_obj = [];
+    frame_obj = struct;
+    % Image channel
+    channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
     %Add pixel list/centroid for each region to frame_obj
     counter = 1;
     rg_all = [];
@@ -554,8 +569,8 @@ disp(['Started frame: ',num2str(t)])
             
             %Fill in BW. 
             BW(stats(i).PixelIdxList) = 1;
-            frame_obj.PixelIdxList{counter} = stats(i).PixelIdxList;
-            frame_obj.centroids{counter}    = stats(i).Centroid;
+            frame_obj.(channel_str).PixelIdxList{counter} = stats(i).PixelIdxList;
+            frame_obj.(channel_str).centroids{counter}    = stats(i).Centroid;
             counter = counter + 1;
     end
 
@@ -566,14 +581,14 @@ disp(['Started frame: ',num2str(t)])
         C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
         c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
         %Match centroids. 
-        fobj_ctrs = cat(1,frame_obj.centroids{:});
+        fobj_ctrs = cat(1,frame_obj.(channel_str).centroids{:});
         D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
         [~,idx] = min(D);
-        frame_obj.contours=C( idx );
+        frame_obj.(channel_str).contours=C( idx );
     end
 
     %Add final binarized image to frame_obj for safe keeping.
-    frame_obj.BW = BW;
+    frame_obj.(channel_str).BW = BW;
 
 
     %Save frame_obj as done before. 
@@ -581,7 +596,7 @@ disp(['Started frame: ',num2str(t)])
     if(~exist(exp_info.nuc_seg_dir,'dir'))
         mkdir(exp_info.nuc_seg_dir)
     end
-    parsave([exp_info.nuc_seg_dir,fname],frame_obj)
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj, channel_str)
     if exist('disp_str','var'); clearString(disp_str); end
     disp_str = ['Finished frame:     ',num2str(t)];
     disp(disp_str)
@@ -589,13 +604,20 @@ end
 
 
 %Parallel saving technique
-function parsave(fname, frame_obj)
+function parsave(fname, frame_obj, channel_str)
 
+if exist( fname, 'file')
+    D = load(fname,'frame_obj');
+    
+    D.frame_obj.(channel_str) = frame_obj.(channel_str);
+    frame_obj = D.frame_obj;
+end
+    
 try
-    save(fname,'frame_obj');
+    save(fname,'frame_obj','-append');
 catch
     %For large files...
-    save(fname, 'frame_obj','-v7.3');
+    save(fname, 'frame_obj','-v7.3','-append');
 end
 end
 

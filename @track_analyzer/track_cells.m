@@ -22,6 +22,13 @@ end
 %Update exp_info with the 'max_dist' param. 
 obj.exp_info.max_dist = params.max_dist;
 
+% Image channel
+if ~isfield(params,'seg_channel')
+   warning('No seg channel specified. Assuming channel 1.')
+    params.seg_channel = 1;
+end
+channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
 debug = 0;
 
 %% Look for flagged cells. 
@@ -49,8 +56,8 @@ for i = 1:length(seg_files)
     
     D = load(seg_files{i},'frame_obj');
     %Check if there are cells. 
-    if(isfield(D.frame_obj,'centroids') )
-        if( ~isempty(D.frame_obj.centroids) )
+    if(isfield(D.frame_obj.(channel_str),'centroids') )
+        if( ~isempty(D.frame_obj.(channel_str).centroids) )
             start_frame = i;
             data = load(seg_files{start_frame},'frame_obj');
             break
@@ -75,11 +82,11 @@ track_counter=0;
     
     %Initialize tracking by adding all objects in start_frame frame as new
     %tracks.
-    old_ids = [1:length(data.frame_obj.centroids)];
+    old_ids = [1:length(data.frame_obj.(channel_str).centroids)];
     
     % Inialize old_centroids
-    old_centroids = cell2mat(data.frame_obj.centroids(old_ids)');
-    old_centroid_loc = zeros(1,length(data.frame_obj.centroids));
+    old_centroids = cell2mat(data.frame_obj.(channel_str).centroids(old_ids)');
+    old_centroid_loc = zeros(1,length(data.frame_obj.(channel_str).centroids));
 
     % Remove flagged data. 
     old_ids = setdiff(old_ids, flags( flags(:,1) == start_frame, 2));
@@ -101,7 +108,7 @@ track_counter=0;
         %Load frame data
         data = load(seg_files{i},'frame_obj');
         %Now check if there any centroids in this frame.
-        if(~isfield(data.frame_obj,'centroids') || any(bad_frames==i) )
+        if(~isfield(data.frame_obj.(channel_str),'centroids') || any(bad_frames==i) )
             %There's no new centroids. 
             empty_frame = 1;
             old_centroids = [];
@@ -109,7 +116,7 @@ track_counter=0;
             continue
         else
             %For each centroid part of frame i, see which centroid is closest
-            new_centroids = cell2mat(data.frame_obj.centroids(:)); 
+            new_centroids = cell2mat(data.frame_obj.(channel_str).centroids(:)); 
             %Ignore flagged data. 
             new_ids = [1:size(new_centroids,1)];
             new_ids = setdiff(new_ids,flags(flags(:,1)==i,2));

@@ -238,6 +238,7 @@ global track_matrix track_sel_vec cell_sel_mat
 
 %Updater function sets the above global variables. Useful for external
 %control. 
+tracks=[];
 initialize_tracks(p.Results.indices)
        
 %Initiate selection vector for spots. 

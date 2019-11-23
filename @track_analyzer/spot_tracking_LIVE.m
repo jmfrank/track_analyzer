@@ -9,6 +9,8 @@
  
 function obj = spot_tracking_LIVE(obj, params, step, frames)
 
+% Image channel
+channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
 [reader,X,Y,Z,C,T] = bfGetReader(obj.exp_info.img_file);
@@ -55,13 +57,18 @@ for t = frames
     end
     
     if step.debug
-        figure(7)
+        figure(10)
         imshow3D(img_filter);
         hold on
         %Concat xy coordinates of centroids
         centroids = cat(1,stats.Centroid);
         centroids = centroids(:,[1,2]);
-        viscircles( centroids,4*ones(length(stats),1))
+        for i = 1:length(stats)
+            h = viscircles( centroids(i,:), 4);
+            row = dataTipTextRow('id',i);
+            h.Children(1).DataTipTemplate.DataTipRows(end+1) = row;
+        end
+        
         colormap gray
     end
     
@@ -86,7 +93,7 @@ for t = frames
     end
     
     %Append fitting results to frame_obj
-    frame_obj.fit = fit;
+    frame_obj.(channel_str).fit = fit;
     save([obj.exp_info.nuc_seg_dir,seg_files(t).name], 'frame_obj','-append');
     
     %struct2table(fit) %,'VariableNames',{'Cellid','sigmaXY','sigmaZ','Y','X','Z','Int','BG','D2P'})

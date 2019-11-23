@@ -6,21 +6,11 @@ function exp_info = get_exp_info(info)
 
 %Need to figure out which computer we are using. I.e. which path to
 %dropbox. 
-try
-    full_file = fullfile('/Users/franklin/Dropbox/',info.csv_file);
-    %Read csv file
-    [fid message ] = fopen(strtrim(full_file));
-    data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
-    fclose(fid);
-    loc = 'Home';
-catch
-    full_file = fullfile('/home/jan/Dropbox',info.csv_file);
-     %Read csv file
-    [fid message ] = fopen(strtrim(full_file));
-    data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
-    fclose(fid);
-    loc = 'Work';
-end
+[db,loc] = path_2_dropbox();
+full_file = fullfile( db, info.csv_file );
+[fid message] = fopen(strtrim(full_file));
+data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
+fclose(fid);
 
 %If specified, use the input location
 if isfield(info,'loc')
@@ -35,13 +25,12 @@ elseif strcmp( loc , 'Home')
     tmp = cellfun(@(x) x(4), data(1));
 elseif strcmp( loc, 'local')
     tmp = cellfun(@(x) x(5), data(1));
-elseif strcmp( loc,'dropbox')
-    a = cellfun(@(x) x(6), data(1));
-    tmp{1} = [path_2_dropbox,a{1}];
+elseif strcmp( loc, 'guan')
+    tmp = cellfun(@(x) x(6), data(1));
 else
-    
-    disp('Location must be "Home" or "Work"');
+    disp('Location not defined');
 end
+
 %now fill in extra columns of data if there's a mis-match at the end. 
 L = cellfun(@(x) size(x,1),data);
 max_L = max(L);

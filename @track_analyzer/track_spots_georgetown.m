@@ -8,6 +8,9 @@ function obj = track_spots_georgetown(obj, params, seg_files)
 %Default parameters. 
 params = default_params(params);
 
+% Image channel
+channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
 
 %Parse input. Use input file list if provided. 
 if(nargin == 2)
@@ -26,9 +29,15 @@ count = 0;
 for i = 1:length(seg_files)
     load(seg_files{i},'frame_obj');
     
-    if(~isempty(frame_obj.fit))
+    if isfield(frame_obj.(channel_str),'fit')
+        these_fits = frame_obj.(channel_str).fit;
+    else
+        these_fits = frame_obj.fit;
+    end
+    
+    if(~isempty(these_fits))
         %Position vector. comes as y,x, (z)
-        pos = cat(1,frame_obj.fit.pos);
+        pos = cat(1,these_fits.pos);
         %Switch to x,y (z)
         if(size(pos,2)==3)
             pos = pos(:,[2,1,3]);
@@ -39,8 +48,8 @@ for i = 1:length(seg_files)
         end  
         
         %Filter out dim spots. 
-        int = cat(1,frame_obj.fit.sum_int);
-        snr = cat(1,frame_obj.fit.snr);
+        int = cat(1,these_fits.sum_int);
+        snr = cat(1,these_fits.snr);
         
         sel = int >= params.min_intensity & snr >= params.min_snr;
         pos = pos(sel,:);
@@ -53,7 +62,7 @@ for i = 1:length(seg_files)
         xyzt = [xyzt; pos, ids', frames ];
         count = size(xyzt,1);
         %Append all_fits (use selection of bright spots)
-        fits_all = [fits_all,frame_obj.fit(sel)];
+        fits_all = [fits_all,these_fits(sel)];
     end
 end
 
@@ -61,12 +70,20 @@ end
 obj.results = fits_all;
 
 
-%Run georgetown tracking
-
+%Run georgetown tracking (only if multiple time-frames...
+if length(seg_files)>1
+    
     %set dim parameter. 
     params.dim=pos_dims;
+    tracks = track(xyzt,params.max_disp,params);
+    
+else
+    
+    tracks = [xyzt, [1:size(xyzt,1)]'];
+    
+end
 
-tracks = track(xyzt,params.max_disp,params);
+
 %Reorganize data
 ids= unique(tracks(:,end));
 spot_tracks = cell( length(ids),1);
