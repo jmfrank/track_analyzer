@@ -40,10 +40,14 @@ for t = frames
         img(:,:,i) = bfGetPlane(reader,this_plane);
     end
     
-    
     %New LoG filter in 3D. Using fast implementation.
     img_filter = -log_filter_3D(img, params.log_sigma);
 
+    %Optional smoothing step.
+    if step.smooth_img
+       
+        img = imgaussfilt3(img, params.smoothing_sigma);
+    end
     
     %Load frame obj to get segmented cells. 
     load([obj.exp_info.nuc_seg_dir,seg_files(t).name], 'frame_obj');
@@ -58,15 +62,16 @@ for t = frames
     
     if step.debug
         figure(10)
-        imshow3D(img_filter);
+        clf
+        imshow3D(img);
         hold on
         %Concat xy coordinates of centroids
         centroids = cat(1,stats.Centroid);
         centroids = centroids(:,[1,2]);
         for i = 1:length(stats)
-            h = viscircles( centroids(i,:), 4);
-            row = dataTipTextRow('id',i);
-            h.Children(1).DataTipTemplate.DataTipRows(end+1) = row;
+            h = viscircles( centroids(i,:), 15);
+            %row = dataTipTextRow('id',i);
+            %h.Children(1).DataTipTemplate.DataTipRows(end+1) = row;
         end
         
         colormap gray
@@ -91,6 +96,27 @@ for t = frames
             fit = fit_this_frame_centroid( img, stats, params);
             
     end
+    
+    %% Remove fits if necessary.
+    if step.max_fits_per_nucleus
+        new_fits = [];
+        cell_ids = [fit.cell_id];
+        
+        for i = unique(cell_ids)
+            these_fits = cell_ids == i;
+            ints = [fits(these_fits).sum_int];
+
+            % Find by top intensity?
+            I = [fit.sum_int];
+            [Is,idx] = sort(I,'descend');
+            
+            if length(Is) > params.max_fits
+                new_fits=[new_fits,fits(idx(1:params.max_fits))];
+            end
+            
+        end
+    end
+    
     
     %Append fitting results to frame_obj
     frame_obj.(channel_str).fit = fit;

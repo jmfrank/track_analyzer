@@ -59,8 +59,11 @@ combined.save;
 
 %By default, start tracking, adding data
 try
-info
-params.max_dist= obj.exp_info.max_dist;
+    info
+    params.max_dist= obj.exp_info.max_dist;
+    try
+        params.seg_channel = info.seg_channel;
+    end
     combined = combined.track_cells(params);
     combined.save;
     disp('tracked successfully');
@@ -82,9 +85,14 @@ if ~isempty(obj.nuc_cyto_data)
 end
 
 %% Spot tracking. 
-combined = combined.track_spots_georgetown( combined.exp_info.spot_track_params );
-combined.save;
+try
+    combined = combined.track_spots_georgetown( combined.exp_info.spot_track_params );
+    combined.save;
     
+catch ME
+      %      rethrow(ME)
+
+end
 
         
 end
