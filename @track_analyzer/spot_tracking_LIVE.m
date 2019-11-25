@@ -61,6 +61,9 @@ for t = frames
     %New LoG filter in 3D. Using fast implementation.
     img_filter = -log_filter_3D(img, params.log_sigma);
 
+    %Load frame obj to get segmented cells. 
+    load([obj.exp_info.nuc_seg_dir,seg_files(t).name], 'frame_obj');
+    
     %Adding a local thresholding algorithm. Stats contains centroids and cell assignments.  
     stats = local_threshold_cells( img, img_filter, frame_obj, params);
         
@@ -86,9 +89,7 @@ for t = frames
         centroids = centroids(:,[1,2]);
         for i = 1:length(stats)
             h = viscircles( centroids(i,:), 15);
-            h.Children(1).UserData = i;
-            %text(centroids(i,1),centroids(i,2),num2str(i),'FontSize',15,'Color','w')
-            
+            h.Children(1).UserData = i;           
         end
         
         cell_centroids = cat(1,frame_obj.(channel_str).centroids);
@@ -118,6 +119,27 @@ for t = frames
             fit = fit_this_frame_centroid( img, stats, params);
             
     end
+    
+    %% Remove fits if necessary.
+    if step.max_fits_per_nucleus
+        new_fits = [];
+        cell_ids = [fit.cell_id];
+        
+        for i = unique(cell_ids)
+            these_fits = cell_ids == i;
+            ints = [fits(these_fits).sum_int];
+
+            % Find by top intensity?
+            I = [fit.sum_int];
+            [Is,idx] = sort(I,'descend');
+            
+            if length(Is) > params.max_fits
+                new_fits=[new_fits,fits(idx(1:params.max_fits))];
+            end
+            
+        end
+    end
+    
     
     %Append fitting results to frame_obj
     frame_obj.(channel_str).fit = fit;

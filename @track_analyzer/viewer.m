@@ -273,8 +273,16 @@ try
 
         end
     end
-    
 end
+
+% Cut out short tracks.
+if isfield(step,'min_track_length')
+    L = cellfun(@(x) size(x,1),obj.tracks);
+    keep_these_tracks = find(L < step.min_track_length);
+    cell_sel_mat(keep_these_tracks,:) = 0; 
+end
+
+    
 
 %Look for existing division data
 if isfield(obj.exp_info,'groups')
