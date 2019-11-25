@@ -27,6 +27,8 @@ elseif strcmp( loc, 'local')
     tmp = cellfun(@(x) x(5), data(1));
 elseif strcmp( loc, 'guan')
     tmp = cellfun(@(x) x(6), data(1));
+elseif strcmp( loc, 'guan_local')
+    tmp = cellfun(@(x) x(6), data(2));
 else
     disp('Location not defined');
 end

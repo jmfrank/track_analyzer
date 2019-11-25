@@ -55,10 +55,11 @@ h_b_z = reshape(h_b_z,[1, 1, length(h_b_z)]);
 %Individual separable filters
 
 try
-    I_1 = imfilter( imfilter( imfilter( gpuArray(img), h_f_x,'same','replicate'), h_b_y,'same','replicate'),h_b_z,'same','replicate');
-    I_2 = imfilter( imfilter( imfilter( gpuArray(img), h_b_x,'same','replicate'), h_f_y,'same','replicate'),h_b_z,'same','replicate');
-    I_3 = imfilter( imfilter( imfilter( gpuArray(img), h_b_x,'same','replicate'), h_b_y,'same','replicate'),h_f_z,'same','replicate');
-    img_filt = gather(I_1) + gather(I_2) + gather(I_3);
+    img_gpu = gpuArray(img);
+    I_1 = imfilter( imfilter( imfilter( img_gpu, h_f_x,'same','replicate'), h_b_y,'same','replicate'),h_b_z,'same','replicate');
+    I_2 = imfilter( imfilter( imfilter( img_gpu, h_b_x,'same','replicate'), h_f_y,'same','replicate'),h_b_z,'same','replicate');
+    I_3 = imfilter( imfilter( imfilter( img_gpu, h_b_x,'same','replicate'), h_b_y,'same','replicate'),h_f_z,'same','replicate');
+    img_filt = gather(I_1+I_2+I_3);
     
 catch
     I_1 = imfilter( imfilter( imfilter( img, h_f_x,'same','replicate'), h_b_y,'same','replicate'),h_b_z,'same','replicate');

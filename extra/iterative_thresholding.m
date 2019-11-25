@@ -123,7 +123,7 @@ p_range=[1:0.2:100];
 %Initialize. 
 thresh = params.thresh_start;
 params.prom_threshold=0.0003;
-params.maxPeakP = 0.3;
+params.maxPeakP = 0.5;
 go=1;
 
 while go
@@ -201,3 +201,9 @@ hold off
 
 end
 
+%% debugging. 
+
+% plot_text( stats_J( matched_blobs ), 1:length(matched_blobs))
+
+%Ploting peaks. 
+% figure(67); plot(p_range(2:end),dP)

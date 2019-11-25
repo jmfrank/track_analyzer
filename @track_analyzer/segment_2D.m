@@ -197,20 +197,27 @@ disp(['Started frame: ',num2str(t)])
             
             %Rescale to 16 bit? 
             I = uint16(I* (2^16-1)/(2^12-1));
-            
+            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
+
         elseif image_bits==16
             if ~strcmp(class(I),'uint16')
                 I = uint16(I);
             end
+            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
+
         end
         
-        tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
 
         %%%% This step might help bring everything to 16bit levels. Try
         %%%% manually changing bit size to 16 here. 
         I = tmp.*65000;
     end
     
+    if step.debug
+        newFigure(66); %< debug figure;
+        imshow3D_filter(I);
+        
+    end
     %Subtract a background value. 
     if(step.subtract_bg)
        sel = I <= params.bg;
@@ -272,7 +279,7 @@ disp(['Started frame: ',num2str(t)])
     J=(double(G).*Multi); % masked image applied on smoothened image
 
     if(step.debug)
-        figure(10)
+        newFigure(66)
         if isfield(params,'percentile')
             try
                 K=params.percentile(t);
@@ -501,7 +508,19 @@ disp(['Started frame: ',num2str(t)])
     if(~isfield(stats,'PixelList'))
         error('No cells found!')
     end
-
+%     %% Remove non-circular blobs. 
+%     if step.circular
+%        
+%         stats = regionprops(logical(BW),'Area','Perimeter','PixelIdxList');
+%         allPerimeters = [stats.Perimeter];
+%         allAreas = [stats.Area];
+%         allCircularities = allPerimeters  .^ 2 ./ (4 * pi* allAreas);
+%         sel = allCircularities < 1.4;
+%         NBW = zeros(size(BW));
+%         %Add in new regions
+%         new_idx = cat(1,stats(sel).PixelIdxList);
+%         NBW(new_idx) = 1;
+%     end
     %% Merge blobs that are very close together. 
     if step.merger
         
@@ -611,7 +630,9 @@ disp(['Started frame: ',num2str(t)])
             nFound=length(frame_obj.(channel_str).contours);
         end
         disp(['Finished frame:     ',num2str(t),' Found ',num2str(nFound),' cells.'])
-
+        
+        % Display parameters. 
+        params
 end
 
 

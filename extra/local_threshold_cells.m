@@ -33,10 +33,10 @@ for i = 1:n_cells
             %2D index. 
             I2d = frame_obj.(channel_str).PixelIdxList{i};
             %Convert to 3D mask.
-            bw = false( size(img,1),size(img,2));
+            bw = false( size(img,1), size(img,2));
             bw(I2d) = 1;
             %Expand to proper z-dimensions. 
-            bw =repmat( bw, [1,1,size(img,3)] );
+            bw =repmat( bw, [1, 1, size(img,3)] );
             %Get index in 3D. 
             this_cell = find(bw);
             
@@ -70,7 +70,7 @@ for i = 1:n_cells
 end
 
 %Stats on original image. Filter our single pixels. 
-stats = regionprops(logical(BW),'Centroid','PixelIdxList');
+stats = regionprops(logical(BW),'Centroid','PixelIdxList','Area');
     
 %Assignment
 spot_centroids = cat(1,stats.Centroid);

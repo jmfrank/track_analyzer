@@ -81,14 +81,14 @@ for t = frames
         clf
         imshow3D(img_filter);
         hold on
-        %Concat xy coordinates of centroids
+        
+        % Concat xy coordinates of centroids
         centroids = cat(1,stats.Centroid);
         centroids = centroids(:,[1,2]);
         for i = 1:length(stats)
             h = viscircles( centroids(i,:), 15);
             h.Children(1).UserData = i;
             %text(centroids(i,1),centroids(i,2),num2str(i),'FontSize',15,'Color','w')
-            
         end
         
         cell_centroids = cat(1,frame_obj.(channel_str).centroids);
