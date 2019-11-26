@@ -1,126 +1,174 @@
 %Perform spot detection in cell nuclei, 2D or 3D. Used for nascent transcription spots seen using FISH staining.
 %Use spot_tracking_LIVE for live-cell imaging. 
 
-function obj = spot_tracking(obj, params, step)
+function obj = spot_tracking(obj, params, step, frames)
 
-Z = obj.exp_info.z_planes;
-T = obj.exp_info.t_frames;
 
+% Image channel
+channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
-reader = bfGetReader(obj.exp_info.img_file);
+[reader,X,Y,Z,C,T] = bfGetReader(obj.exp_info.img_file);
 series = 1;
 
-%Get the image size of this series. 
-size_x = reader.getSizeX;
-size_y = reader.getSizeY;
+%Figure out if call to function included specific frames. 
+if nargin < 4
+    frames = 1:T;
+else
+    frames = frames;
+end
 
 %Get segmentation files 
 seg_files = obj.get_frame_files;
 
 %LSM time series goes Z first, then time. For each time point, load the
 %Z-stack at time t, then max project and segment. 
-for t = 1:T
+for t = frames
 
     
     %Get the images for this z-stack according to bioformats reader
-    img = zeros(size_y,size_x,Z);
+    img = zeros(Y,X,Z);
     for i = 1:Z
         this_plane = reader.getIndex(i-1,params.seg_channel-1,t-1)+1;
         img(:,:,i) = bfGetPlane(reader,this_plane);
     end
-    
-    %IMPORTANT: we often deal with stitched images. So we should fill in
-    %zero-valued pixels. 
-    img = fill_edges(img);
-    
-    %New LoG filter in 3D. Using fast implementation.
-    img_filter = - log_filter_3D(img, params.log_sigma);
-
-    %Binarize image based on threshold. 
-    im_threshold = img_filter >= params.threshold;
 
     %Load cell data and collect centroids. 
     load(seg_files{t}, 'frame_obj');
     
+    %IMPORTANT: we often deal with stitched images. So we should fill in
+    %zero-valued pixels. 
+    %img = fill_edges(img);
+    
+    %% Subtract local background? 
+    if step.subtract_local_background 
+        
+        % Using the nuclear masks, subtract the median/mean intensity value
+        % from each cell nuclei. This will prevent large gradients at
+        % nuclear edge. 
+        img = subtract_local_backgroud(img, frame_obj.(channel_str)) ;
+    end
+    
+    %New LoG filter in 3D. Using fast implementation.
+    img_filter = -log_filter_3D(img, params.log_sigma);
+
+    %Binarize image based on threshold. 
+    im_threshold = img_filter >= params.threshold;
+
+
     %Now just multily by the cell nucleus mask
-        %Check if BW is 2D or 3D. 
-        if(numel(size(frame_obj.BW))==2)
-            BW = repmat(frame_obj.BW,[1,1,size(im_threshold,3)]);
-        else
-            BW = frame_obj.BW;
-        end
+    %Check if BW is 2D or 3D. 
+    if(numel(size(frame_obj.(channel_str).BW))==2)
+        BW = repmat(frame_obj.BW,[1,1,size(im_threshold,3)]);
+    else
+        BW = frame_obj.(channel_str).BW;
+    end
+        
     im_threshold = im_threshold.*BW;
         
     %Collect stats on regions
-    stats = regionprops(logical(im_threshold),'Centroid');
+    stats = regionprops(logical(im_threshold), 'Centroid', 'PixelIdxList', 'Area');
     
-
-    %Estimate assignment. 
-    cell_centroids = cat(1,frame_obj.centroids{:});
+    %Assignment
+    seg_dim = length(stats(1).Centroid);
     spot_centroids = cat(1,stats.Centroid);
-    if(size(cell_centroids,2)==2)
-        spot_centroids = spot_centroids(:,1:2);
+    cell_centroids = cat(1,frame_obj.(channel_str).centroids{:});
+    if seg_dim == 2 && length(size(BW))==2
+        D = pdist2(spot_centroids, cell_centroids);
+    elseif seg_dim ==2 && length(size(BW)) ==3
+        cell_centroids = [cell_centroids, h/2*ones(size(cell_centroids,1),1)];
+        D = pdist2(spot_centroids, cell_centroids);
+    elseif seg_dim ==3 && length(size(BW))==3
+        D = pdist2(spot_centroids, cell_centroids);
     end
-           
-    D = pdist2(spot_centroids, cell_centroids);
+
     [~,assignment] = min(D,[],2);
+
     A = num2cell(assignment);
     [stats.assignment] = A{:};
     
-    %Refine assigment for those that are too close. Compare distance to nearest and next-nearest. If within a threshold,
-        %refine the assignment. 
-        [D_sort,sort_I] = sort(D,2);
-        cmp_dist = D_sort(:,2)- D_sort(:,1);
-        these_conflict = find(cmp_dist < 15); %15 pixels min distance to next neighbor. 
-        cell_ids       = sort_I(these_conflict,1:2);
-        %Empty reference image. 
-        E = zeros(size(BW,1),size(BW,2));
+    % Merge duplicates (i.e. spots that are too close. 
+    if step.merge_duplicates
+        
+        D = pdist2( cat(1,stats.Centroid), cat(1,stats.Centroid) );
+        
+        these_too_close = triu(D) < params.merge_distance & triu(D) > 0;
+        
+        %Loop over and merge. 
+        old_stats = stats;
+        stats(length(old_stats))=struct('Centroid',[],'PixelIdxList',[],'assignment',[],'Area',[]);
+        c=0;
+        bad_list = [];
+        for i = 1:size(these_too_close,1)
+            [idx] = find(these_too_close(i,:));
+            
+            if any(i==bad_list)
+                continue
+            end
+            
+            if ~isempty(idx)
+                
+                % Iteratively check if each idx also have neighbors. 
+                all_idx = idx;
+                curr_idx = idx;
+                pass = 0;
+                while pass == 0
+                    sum_more = [];
 
-        for c = 1:length(these_conflict)
-           %this spot centroid. 
-           this_spot_centroid = spot_centroids(these_conflict(c),:);
-
-           %Calculate contours for the two possible cells. 
-           these_cells = cell_ids(c,:);
-
-           for z = 1:length(these_cells)
-                cell_img = E;    
-                px = frame_obj.PixelIdxList{ these_cells(z)};
-                cell_img(px) = 1;
-                [x,y] = C2xyz(contourc(cell_img,[0.5,0.5]));
-                IN(z) = inpolygon( this_spot_centroid(1),this_spot_centroid(2),x{1},y{1});
-           end
-
-           %Check if spot is inside at least one cell. 
-           if(sum(IN)==1)
-               %Assign spot to correct cell. 
-               stats(these_conflict(c)).assignment = these_cells(IN);
-           else
-               disp('Did not assign spot')
-           end
-
+                    for j = 1:length(curr_idx)
+                        sum_more = [sum_more,find(these_too_close(curr_idx(j),:))];
+                    end
+                    
+                    if isempty(sum_more)
+                        pass = 1;
+                    else
+                        all_idx = union(all_idx,sum_more);
+                        curr_idx = sum_more;
+                    end
+                end
+                idx = all_idx;
+                c=c+1;
+                
+                % Take mean position of all centroids. 
+                stats(c).Centroid =  mean(cat(1,old_stats([i,idx]).Centroid));
+                stats(c).PixelIdxList = unique(cat(1,old_stats([i,idx]).PixelIdxList));
+                stats(c).assignment = old_stats(i).assignment;
+                stats(c).Area = length(stats(i).PixelIdxList);
+                bad_list = [bad_list, idx];
+            else
+                c=c+1;
+                stats(c) = old_stats(i);
+            end
         end
+        %Remove empties. 
+        stats = stats(1:c);        
+    end
 
 
     %Check if there were any empty ROI's
-    if( length( stats )==0 )
-        continue
-    end
+    %if( length( stats )==0 )
+    %    continue
+    %end
     
-    if(step.debug)
-        figure(7)
-        imshow3D(img_filter)
-        colorbar
-        axis equal
-        axis tight
+    if step.debug
+        figure(10)
+        clf
+        imshow3D(img_filter);
         hold on
         %Concat xy coordinates of centroids
         centroids = cat(1,stats.Centroid);
         centroids = centroids(:,[1,2]);
-        viscircles( centroids,4*ones(length(stats),1))
+        for i = 1:length(stats)
+            h = viscircles( centroids(i,:), 15);
+            h.Children(1).UserData = i;           
+        end
+        
+        cell_centroids = cat(1,frame_obj.(channel_str).centroids);
+        for i = 1:length(cell_centroids)
+            %text(cell_centroids{i}(1),cell_centroids{i}(2),num2str(i),'fontsize',20,'Color','w')
+        end
+        
         colormap gray
-        pause
     end
     
     
@@ -146,11 +194,14 @@ for t = 1:T
             
             %Simple centroid fitting scheme
             fit = fit_this_frame_centroid( img, stats, params);
-
+        
+        case 'Arbitrary'
+            
+            fit = fit_this_frame_arbitrary( img, stats, params);
     end
     
     %Append fitting results to frame_obj
-    frame_obj.fit = fit;
+    frame_obj.(channel_str).fit = fit;
     save(seg_files{t}, 'frame_obj','-append');
     
     struct2table(fit) %,'VariableNames',{'Cellid','sigmaXY','sigmaZ','Y','X','Z','Int','BG','D2P'})
@@ -159,6 +210,32 @@ end
 
 
 
+end
+
+%% 
+
+function img = subtract_local_backgroud(img, frame_obj)
+
+    % Loop over cell nuclei in BW. 
+    n = length(frame_obj.PixelIdxList);
+    
+    for i = 1:n
+        
+        bw = false(size(frame_obj.BW));
+        
+        bw( frame_obj.PixelIdxList{i} ) = 1;
+        
+        mean_val = mean( img(bw));
+        %median_val = median( img(bw));
+        
+        img(bw) = img(bw)-mean_val;
+        
+    end
+    
+    % Set the background to zero?
+    bg = ~frame_obj.BW;
+    img(bg) = 0;
+    
 end
 
 

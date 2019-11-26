@@ -23,25 +23,21 @@ else
     frames = frames;
 end
 
-%Get the image size of this series. 
-size_x = reader.getSizeX;
-size_y = reader.getSizeY;
-
 %Get segmentation files 
-seg_files = dir([obj.exp_info.nuc_seg_dir,'*.mat']);
-    
+seg_files = obj.get_frame_files();
+
 %LSM time series goes Z first, then time. For each time point, load the
 %Z-stack at time t, then max project and segment. 
 for t = frames
     %Get the images for this z-stack according to bioformats reader
-    img = zeros(size_y,size_x,Z);
+    img = zeros(Y,X,Z);
     for i = 1:Z
         this_plane = reader.getIndex(i-1,params.seg_channel-1,t-1)+1;
         img(:,:,i) = bfGetPlane(reader,this_plane);
     end
     
     %Load frame obj to get segmented cells. 
-    load([obj.exp_info.nuc_seg_dir,seg_files(t).name], 'frame_obj');
+    load(seg_files{t}, 'frame_obj');
     
     %Optional smoothing step.
     if step.smooth_img
@@ -72,6 +68,65 @@ for t = frames
         continue
     end
     
+    % Merge duplicates (i.e. spots that are too close. 
+    if step.merge_duplicates
+        
+        D = pdist2( cat(1,stats.Centroid), cat(1,stats.Centroid) );
+        
+        these_too_close = triu(D) < params.merge_distance & triu(D) > 0;
+        
+        %Loop over and merge. 
+        old_stats = stats;
+        stats(length(old_stats))=struct('Centroid',[],'PixelIdxList',[],'assignment',[],'Area',[]);
+        c=0;
+        bad_list = [];
+        for i = 1:size(these_too_close,1)
+            [idx] = find(these_too_close(i,:));
+            
+            if any(i==bad_list)
+                continue
+            end
+            
+            if ~isempty(idx)
+                
+                % Iteratively check if each idx also have neighbors. 
+                all_idx = idx;
+                curr_idx = idx;
+                pass = 0;
+                while pass == 0
+                    sum_more = [];
+
+                    for j = 1:length(curr_idx)
+                        
+                        sum_more = [sum_more,find(these_too_close(curr_idx(j),:))];
+                    end
+                    
+                    if isempty(sum_more)
+                        pass = 1;
+                    else
+                        all_idx = union(all_idx,sum_more);
+                        curr_idx = sum_more;
+                    end
+                end
+                idx = all_idx;
+                    
+                c=c+1;
+                % Take mean position of all centroids. 
+                stats(c).Centroid =  mean(cat(1,old_stats([i,idx]).Centroid));
+                stats(c).PixelIdxList = unique(cat(1,old_stats([i,idx]).PixelIdxList));
+                stats(c).assignment = old_stats(i).assignment;
+                stats(c).Area = length(stats(i).PixelIdxList);
+                bad_list = [bad_list, idx];
+            else
+                c=c+1;
+                stats(c) = old_stats(i);
+            end
+        end
+        %Remove empties. 
+        stats = stats(1:c);
+                
+    end
+    
     % Filter out smaller regions. fit_this_frame_centroid
     if step.max_size
         areas = [stats.Area];
@@ -94,7 +149,7 @@ for t = frames
         
         cell_centroids = cat(1,frame_obj.(channel_str).centroids);
         for i = 1:length(cell_centroids)
-            text(cell_centroids{i}(1),cell_centroids{i}(2),num2str(i),'fontsize',20,'Color','w')
+            %text(cell_centroids{i}(1),cell_centroids{i}(2),num2str(i),'fontsize',20,'Color','w')
         end
         
         colormap gray
@@ -117,6 +172,10 @@ for t = frames
         case 'Centroid'
             
             fit = fit_this_frame_centroid( img, stats, params);
+        
+        case 'Arbitrary'
+            
+            fit = fit_this_frame_arbitrary( img, stats, params);
             
     end
     
@@ -143,7 +202,7 @@ for t = frames
     
     %Append fitting results to frame_obj
     frame_obj.(channel_str).fit = fit;
-    save([obj.exp_info.nuc_seg_dir,seg_files(t).name], 'frame_obj','-append');
+    save(seg_files{t}, 'frame_obj','-append');
     
     %struct2table(fit) %,'VariableNames',{'Cellid','sigmaXY','sigmaZ','Y','X','Z','Int','BG','D2P'})
     display(['Completed frame: ',num2str(t)])
@@ -158,8 +217,6 @@ end
 %% 
 
 function img = subtract_local_backgroud(img, frame_obj)
-
-
 
     % Loop over cell nuclei in BW. 
     n = length(frame_obj.PixelIdxList);
@@ -182,7 +239,5 @@ function img = subtract_local_backgroud(img, frame_obj)
     img(bg) = 0;
     
 end
-        
-
     
 

@@ -70,8 +70,8 @@ for i = 1:n_cells
 end
 
 %Stats on original image. Filter our single pixels. 
-stats = regionprops(logical(BW),'Centroid','PixelIdxList','Area');
-    
+stats = regionprops(logical(BW), 'Centroid', 'PixelIdxList', 'Area');
+
 %Assignment
 spot_centroids = cat(1,stats.Centroid);
 cell_centroids = cat(1,frame_obj.(channel_str).centroids{:});
@@ -83,7 +83,6 @@ elseif seg_dim ==2 && length(size(BW)) ==3
 elseif seg_dim ==3 && length(size(BW))==3
     D = pdist2(spot_centroids, cell_centroids);
 end
-
 
 [~,assignment] = min(D,[],2);
     
