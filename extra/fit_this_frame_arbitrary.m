@@ -1,29 +1,33 @@
 %Pass a 3D frame and find spots. Uses the stats object pixels to query the
 %local background to give blob measurements. 
 
-function fit = fit_this_frame_arbitrary( img, stats, params )
+function fit = fit_this_frame_arbitrary( img, stats, BW, params )
 
 debug = 0;
 %Get dimensions of stack
 [l,w,h] = size(img); 
+
+% number of centroids. 
+N = length(stats);
+
+% Rebuild the thresholded image using stats.
+img_thresh = false(size(BW));
+img_thresh( cat(1,stats.PixelIdxList) ) = 1;
 
 %Get vectors of peak centers and mean-intensities
 centers = cat(1,stats.Centroid);
 
 %Empty structure for fitting measurements. Input is the number of
 %centroids. Will need to remove empty entries later on. 
-fit = gen_fit_struct( length(stats) );
+fit = gen_fit_struct( N );
 
-%Make a special shell-mask for querying the local background. 
-    bounds=params.bg_mask;
-    B = strel('sphere',bounds(2));
-    A = strel('sphere',bounds(1));
-    
-    fgMASK = padarray(A.Neighborhood,(params.search_radius-bounds(1))*[1,1,1]);
-    bgMASK = padarray(B.Neighborhood,(params.search_radius-bounds(2))*[1,1,1])...
-        & ~fgMASK;
+% We will use image dilation to sample the local background. Need to ignore
+% pixels that are not part of cell.
+bounds=params.bg_mask;
+B = strel('sphere',bounds(2));
+A = strel('sphere',bounds(1));
 
-for i = 1:size(centers,1)
+for i = 1:N
         
     %approximate center. 
     ctr = round(centers(i,:));
@@ -38,58 +42,55 @@ for i = 1:size(centers,1)
     z = ctr(3)-params.search_radius:ctr(3)+params.search_radius;
     sel_z = z > 0 & z <= h;
     z = z(sel_z);
+    
     %Select the roi (use all z)
-    search_stack = double(img(y,x,z));
-
-    %Guess center for fitting
-    this_fg = fgMASK(sel_y,sel_x,sel_z);
-    this_bg = bgMASK(sel_y,sel_x,sel_z);
+    img_sub_stack = double(img(y,x,z));
     
-    %Background calculation. 
-    bg_int = search_stack( this_bg );
-    mean_bg = mean(bg_int);
+    % Substack of this centroid.
+    fg_sub_stack = img_thresh(y,x,z);
     
-    %Foreground index for search stack
-    fg_ind = find(this_fg);
+    % Get roi in cell BW.
+    bg_sub_stack = BW(y,x,z);
     
+    % generate the background mask
+    this_bg = imdilate(fg_sub_stack, B) - imdilate(fg_sub_stack, A);
+    
+    % Now multiply by cell mask.
+    this_fg = logical(fg_sub_stack.*bg_sub_stack);
+    this_bg = logical(this_bg.*bg_sub_stack);
+    
+    % Calculate mean bg intensityies.
+    bg_int = img_sub_stack(this_bg);
+    mean_bg = mean( bg_int );
+        
     %Background subtracted foreground values
-    fg_int = search_stack( fg_ind ) - mean_bg;
+    fg_int = img_sub_stack( this_fg ) - mean_bg;
     
     %foreground coordinates
-    [Y,X,Z] = ind2sub(size(search_stack),fg_ind);
+    [Y,X,Z] = ind2sub(size(img_sub_stack),find(this_fg));
     
     %Center of mass. 
     M = sum(fg_int);
     R = sum([Y,X,Z].*fg_int,1)./M;
     
     %Fill up fit variable. 
-    fit(i).pos      = R + [y(1)-1,x(1)-1,z(1)-1];
+    fit(i).pos      = R + [y(1)-1,x(1)-1,z(1)-1]; %(Shift back to position)
     fit(i).mean_int = mean(fg_int);    
     fit(i).real_bg  = mean_bg;
     fit(i).sum_int  = sum(fg_int);
     fit(i).snr      = max(fg_int)/std(bg_int);
     %Assign fit to cell
     fit(i).cell_id  = stats(i).assignment;
-           
+    fit(i).size     = sum(this_fg(:));
         
     %Debug section
     if(debug)
-        figure(10);
-        hold on
-        mip_tmp = max(search_stack,[],3);
-        imagesc(mip_tmp)
         POS = fit(i).pos - [y(1)-1,x(1)-1,z(1)-1];
-        plot(POS(2),POS(1),'*r')
-        hold off
-        set(gca,'ydir','reverse')
-        colormap gray
-
         figure(8);
-        imshow3D(search_stack)
+        imshow3D(img_sub_stack)
         hold on
         plot(POS(2),POS(1),'*r')
         hold off
-        pause
     end
 end 
 
@@ -99,7 +100,7 @@ function empty_structure = gen_fit_struct( N )
 
 %Fields
 empty_structure(N) = struct('pos',[],'mean_int',[],...
-    'real_bg',[],'sum_int',[],'cell_id',[]);
+    'real_bg',[],'sum_int',[],'cell_id',[]),'size',[];
 
 end
 

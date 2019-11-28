@@ -46,12 +46,16 @@ for t = frames
         % Using the nuclear masks, subtract the median/mean intensity value
         % from each cell nuclei. This will prevent large gradients at
         % nuclear edge. 
-        img = subtract_local_backgroud(img, frame_obj.(channel_str)) ;
+        img_sub_bg = subtract_local_backgroud(img, frame_obj.(channel_str)) ;
+        %New LoG filter in 3D. Using fast implementation.
+        img_filter = -log_filter_3D(img_sub_bg, params.log_sigma);
+
+    else
+        %New LoG filter in 3D. Using fast implementation.
+        img_filter = -log_filter_3D(img, params.log_sigma);
+
     end
     
-    %New LoG filter in 3D. Using fast implementation.
-    img_filter = -log_filter_3D(img, params.log_sigma);
-
     %Binarize image based on threshold. 
     im_threshold = img_filter >= params.threshold;
 
@@ -89,66 +93,23 @@ for t = frames
     
     % Merge duplicates (i.e. spots that are too close. 
     if step.merge_duplicates
+    
+        stats = merge_duplicates(stats,params);
         
-        D = pdist2( cat(1,stats.Centroid), cat(1,stats.Centroid) );
-        
-        these_too_close = triu(D) < params.merge_distance & triu(D) > 0;
-        
-        %Loop over and merge. 
-        old_stats = stats;
-        stats(length(old_stats))=struct('Centroid',[],'PixelIdxList',[],'assignment',[],'Area',[]);
-        c=0;
-        bad_list = [];
-        for i = 1:size(these_too_close,1)
-            [idx] = find(these_too_close(i,:));
-            
-            if any(i==bad_list)
-                continue
-            end
-            
-            if ~isempty(idx)
-                
-                % Iteratively check if each idx also have neighbors. 
-                all_idx = idx;
-                curr_idx = idx;
-                pass = 0;
-                while pass == 0
-                    sum_more = [];
-
-                    for j = 1:length(curr_idx)
-                        sum_more = [sum_more,find(these_too_close(curr_idx(j),:))];
-                    end
-                    
-                    if isempty(sum_more)
-                        pass = 1;
-                    else
-                        all_idx = union(all_idx,sum_more);
-                        curr_idx = sum_more;
-                    end
-                end
-                idx = all_idx;
-                c=c+1;
-                
-                % Take mean position of all centroids. 
-                stats(c).Centroid =  mean(cat(1,old_stats([i,idx]).Centroid));
-                stats(c).PixelIdxList = unique(cat(1,old_stats([i,idx]).PixelIdxList));
-                stats(c).assignment = old_stats(i).assignment;
-                stats(c).Area = length(stats(i).PixelIdxList);
-                bad_list = [bad_list, idx];
-            else
-                c=c+1;
-                stats(c) = old_stats(i);
-            end
-        end
-        %Remove empties. 
-        stats = stats(1:c);        
     end
 
 
     %Check if there were any empty ROI's
-    %if( length( stats )==0 )
-    %    continue
-    %end
+    if( length( stats )==0 )
+        continue
+    end
+    
+    % Filter out small or large regions. fit_this_frame_centroid
+    if step.sizing
+        areas = [stats.Area];
+        sel = areas >= params.sizes(1) &  areas <= params.sizes(2);
+        stats = stats(sel);
+    end
     
     if step.debug
         figure(10)
@@ -197,7 +158,7 @@ for t = frames
         
         case 'Arbitrary'
             
-            fit = fit_this_frame_arbitrary( img, stats, params);
+            fit = fit_this_frame_arbitrary( img, stats, frame_obj.(channel_str).BW, params);
     end
     
     %Append fitting results to frame_obj
@@ -212,8 +173,7 @@ end
 
 end
 
-%% 
-
+%% Local background subtracking.
 function img = subtract_local_backgroud(img, frame_obj)
 
     % Loop over cell nuclei in BW. 
@@ -238,4 +198,60 @@ function img = subtract_local_backgroud(img, frame_obj)
     
 end
 
+%% Merging centroids that are very close into one defined region. 
+function stats = merge_duplicates(stats, params)
 
+
+    D = pdist2( cat(1,stats.Centroid), cat(1,stats.Centroid) );
+
+    these_too_close = triu(D) < params.merge_distance & triu(D) > 0;
+
+    %Loop over and merge. 
+    old_stats = stats;
+    stats(length(old_stats))=struct('Centroid',[],'PixelIdxList',[],'assignment',[],'Area',[]);
+    c=0;
+    bad_list = [];
+    for i = 1:size(these_too_close,1)
+        [idx] = find(these_too_close(i,:));
+
+        if any(i==bad_list)
+            continue
+        end
+
+        if ~isempty(idx)
+
+            % Iteratively check if each idx also have neighbors. 
+            all_idx = idx;
+            curr_idx = idx;
+            pass = 0;
+            while pass == 0
+                sum_more = [];
+
+                for j = 1:length(curr_idx)
+                    sum_more = [sum_more,find(these_too_close(curr_idx(j),:))];
+                end
+
+                if isempty(sum_more)
+                    pass = 1;
+                else
+                    all_idx = union(all_idx,sum_more);
+                    curr_idx = sum_more;
+                end
+            end
+            idx = all_idx;
+            c=c+1;
+
+            % Take mean position of all centroids. 
+            stats(c).Centroid =  mean(cat(1,old_stats([i,idx]).Centroid));
+            stats(c).PixelIdxList = unique(cat(1,old_stats([i,idx]).PixelIdxList));
+            stats(c).assignment = old_stats(i).assignment;
+            stats(c).Area = length(stats(i).PixelIdxList);
+            bad_list = [bad_list, idx];
+        else
+            c=c+1;
+            stats(c) = old_stats(i);
+        end
+    end
+    %Remove empties. 
+    stats = stats(1:c); 
+end

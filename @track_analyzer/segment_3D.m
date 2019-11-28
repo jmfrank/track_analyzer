@@ -162,7 +162,7 @@ disp(['Started frame: ',num2str(t)])
     
     %Reduce i for debugging
     if(step.debug)
-        %I = I(650:750,375:475,:);
+        I = I(1:512,1:512,:);
     end
     Ie = zeros(size(I));
     G = Ie; Diff_im = Ie; 
