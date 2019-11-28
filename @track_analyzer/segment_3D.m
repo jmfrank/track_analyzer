@@ -341,7 +341,7 @@ disp(['Started frame: ',num2str(t)])
     %Collect stats again. 
     stats = regionprops(logical(gather(new_BW)),'Centroid','Area','PixelList','PixelIdxList');
     
-    %Remove VERY small volumes
+    %Remove small volumes
     volumes = [stats.Area]';
     sel = volumes >= AbsMinVol;
     stats = stats(sel);

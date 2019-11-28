@@ -57,9 +57,6 @@ for t = frames
     %New LoG filter in 3D. Using fast implementation.
     img_filter = -log_filter_3D(img, params.log_sigma);
 
-    %Load frame obj to get segmented cells. 
-    load([obj.exp_info.nuc_seg_dir,seg_files(t).name], 'frame_obj');
-    
     %Adding a local thresholding algorithm. Stats contains centroids and cell assignments.  
     stats = local_threshold_cells( img, img_filter, frame_obj, params);
         
