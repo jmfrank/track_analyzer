@@ -568,7 +568,7 @@ disp(['Started frame: ',num2str(t)])
         mkdir(exp_info.nuc_seg_dir)
     end
         
-    parsave([exp_info.nuc_seg_dir,fname],frame_obj)
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj,channel_str)
     if exist('disp_str','var'); clearString(disp_str); end
     disp_str = ['Finished frame:     ',num2str(t)];
     disp(disp_str)
@@ -576,15 +576,25 @@ disp(['Started frame: ',num2str(t)])
 end
 
 
+
 %Parallel saving technique
-function parsave(fname, frame_obj)
+function parsave(fname, frame_obj, channel_str)
+
+if exist( fname, 'file')
+    D = load(fname,'frame_obj');
+    
+    D.frame_obj.(channel_str) = frame_obj.(channel_str);
+    frame_obj = D.frame_obj;
+end
+    
 try
-    save(fname,'frame_obj');
+    save(fname,'frame_obj','-append');
 catch
     %For large files...
-    save(fname, 'frame_obj','-v7.3');
+    save(fname, 'frame_obj','-v7.3','-append');
 end
 end
+
 
 
 %% Plotting text over image
