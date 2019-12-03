@@ -164,8 +164,9 @@ disp(['Started frame: ',num2str(t)])
     if(step.debug)
         I = I(1:512,1:512,:);
     end
-    Ie = zeros(size(I));
-    G = Ie; Diff_im = Ie; 
+    
+    G = zeros(size(I)); 
+    Diff_im = zeros(size(I)); 
     
        
     %% PRE-PROCESSING STEPS. Filters, and removing outliers. 
@@ -189,7 +190,7 @@ disp(['Started frame: ',num2str(t)])
         %%%% This step might help bring everything to 16bit levels. Try
         %%%% manually changing bit size to 16 here. 
         I = tmp.*65535;
-        image_bits = 16;
+        clear tmp
     end
 
     %CLAHE
@@ -211,7 +212,7 @@ disp(['Started frame: ',num2str(t)])
         end
         
         I = I_sm.*65535;
-                
+        clear I_sm
     end
     
     %Subtract a background value. 
@@ -231,26 +232,29 @@ disp(['Started frame: ',num2str(t)])
     
     %Diffusion
     %Rescale to [0,1]
-    Fim = mat2gray(Diff_im);
+    Fim = mat2gray(Diff_im); clear Diff_im;
     %Get gauss gradient. Using separable filters. sigmagradient now 3 component vector
-    [imx,imy]=gaussgradient2D_sep(Fim,sigmagradient);
+    [imx,imy]=gaussgradient2D_sep(Fim,sigmagradient); clear Fim;
     %Total magnitude. 
     Mag_fim = hypot(imx,imy);
 
     %Laplacian. 
     [L_imxx, L_imxy] = gaussgradient2D_sep(imx,sigmagradient);
     [L_imyx, L_imyy] = gaussgradient2D_sep(imy,sigmagradient);
-    
+    clear imx imy  
     Mag_Lim = L_imxx + L_imyy;% + L_imxy + L_imyx; % + L_imzz;
     Mag_Lim = Mag_Lim.*(Mag_Lim>0);
     
     Det_hessian = L_imxx.*L_imyy - L_imxy.*L_imyx;
+    clear L_imxx L_imxy L_imyx L_imyy
     Det_hessian = Det_hessian.*(Det_hessian<0);
     
     X=gamma-((alpha*Mag_fim + beta*Mag_Lim + epsilon*abs(Det_hessian)) ./ delta);
+    clear Mag_fim Mag_Lim Det_hessian
     Multi=0.5*(tanh(X)+1);% masking function
     
     J=(double(G).*Multi); % masked image applied on smoothened image
+    clear X Multi G
     
     %Estimate threshold by histogram. 
     if step.threshold_by_histogram 
@@ -268,9 +272,9 @@ disp(['Started frame: ',num2str(t)])
     %Collect stats. 
     stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
     
-    %Remove VERY small volumes
+    %Remove VERY small/large volumes
     volumes = [stats.Area]';
-    sel = volumes >= AbsMinVol/4;
+    sel = volumes >= AbsMinVol/4 & volumes <= AbsMaxVol*4;
     stats = stats(sel);
     
     %Rebuild BW
@@ -581,17 +585,30 @@ end
 function parsave(fname, frame_obj, channel_str)
 
 if exist( fname, 'file')
-    D = load(fname,'frame_obj');
+    try
+        D = load(fname,'frame_obj');
+    catch
+        D = struc();
+        warning('encountered empty frame file')
+    end
     
     D.frame_obj.(channel_str) = frame_obj.(channel_str);
     frame_obj = D.frame_obj;
-end
+    try
+        save(fname,'frame_obj','-append');
+    catch
+        %For large files...
+        save(fname, 'frame_obj','-v7.3','-append');
+    end
+else
     
-try
-    save(fname,'frame_obj','-append');
-catch
-    %For large files...
-    save(fname, 'frame_obj','-v7.3','-append');
+    try
+        save(fname,'frame_obj');
+    catch
+        %For large files...
+        save(fname, 'frame_obj','-v7.3');
+    end
+
 end
 end
 
