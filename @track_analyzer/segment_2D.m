@@ -207,7 +207,6 @@ disp(['Started frame: ',num2str(t)])
 
         end
         
-
         %%%% This step might help bring everything to 16bit levels. Try
         %%%% manually changing bit size to 16 here. 
         I = tmp.*65000;
@@ -319,7 +318,7 @@ disp(['Started frame: ',num2str(t)])
             end
             
         %Incremental change in threshold. 
-        params.increment = params.thresh_start*0.01;
+        %params.increment = params.thresh_start*0.01;
         %First smooth image. 
         I_sm = imgaussfilt(I,params.I_sm_sigma);
         %Perform iterative thresholding. 
