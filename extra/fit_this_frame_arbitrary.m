@@ -79,10 +79,18 @@ for i = 1:N
     fit(i).real_bg  = mean_bg;
     fit(i).sum_int  = sum(fg_int);
     fit(i).snr      = max(fg_int)/std(bg_int);
+    
     %Assign fit to cell
     fit(i).cell_id  = stats(i).assignment;
+    
+    % Size of blob
     fit(i).size     = sum(this_fg(:));
-        
+    
+    % Pixel idx of blobs. 
+    pixels = false(size(img));
+    pixels(y,x,z) = this_fg;
+    fit(i).PixelIdxList = find(pixels);
+    
     %Debug section
     if(debug)
         POS = fit(i).pos - [y(1)-1,x(1)-1,z(1)-1];
@@ -100,7 +108,7 @@ function empty_structure = gen_fit_struct( N )
 
 %Fields
 empty_structure(N) = struct('pos',[],'mean_int',[],...
-    'real_bg',[],'sum_int',[],'cell_id',[]),'size',[];
+    'real_bg',[],'sum_int',[],'cell_id',[],'size',[],'PixelIdxList',[]);
 
 end
 
