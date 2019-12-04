@@ -33,10 +33,10 @@ debug = 0;
 
 %% Look for flagged cells. 
 if isfield( obj.exp_info,'flagged')
-    
-    flags = obj.exp_info.flagged.cells;
-    if isempty(flags)
-        flags=[0,0];
+    if isempty(obj.exp_info.flagged)
+        flags = [0,0];
+    else
+        flags = obj.exp_info.flagged.cells;
     end
 else
     

@@ -29,11 +29,13 @@ seg_files = obj.get_frame_files();
 % Flags. 
 if isfield(obj.exp_info,'flagged')
     disp('Found flagged data')
-    
-    flags = obj.exp_info.flagged.cells;
-    
+    if isempty(obj.exp_info.flagged)
+        flags = [];
+    else
+        flags = obj.exp_info.flagged.cells;
+    end
 else
-    flags = []
+    flags = [];
 end
 
 %LSM time series goes Z first, then time. For each time point, load the
