@@ -227,7 +227,6 @@ set(MAIN,'color','w');
 %Initialize t
 t=1;
 setappdata(0,'t',t);
-
     
 %Define total number of frames. 
 T = size(frame2img,1); 
@@ -251,28 +250,37 @@ end
 
 %Look for existing flags. 
 try
-    flagged = obj.exp_info.flagged;
-    disp('Found existing flags.')
-
-    setappdata(0,'flagged',flagged)
     
-    % Check if cells and/or tracks flagged. 
-    if ~isempty(flagged.cells)
-
+    if isfield(obj.exp_info,'flagged');
+        flagged = obj.exp_info.flagged;
         disp('Found existing flags.')
-        %Loop over flagged cells. 
-        for i = 1:size(flagged.cells,1)
-            this_time = flagged.cells(i,1);
-            this_cell_id = flagged.cells(i,2);
 
-            % Find the track at this time. 
-            this_track = track_matrix(:,this_time)==this_cell_id;
+        setappdata(0,'flagged',flagged)
 
-            % Set this cell off. 
-            cell_sel_mat(this_track, this_time) = 0;
+        % Check if cells and/or tracks flagged. 
+        if ~isempty(flagged.cells)
 
+            %Loop over flagged cells. 
+            for i = 1:size(flagged.cells,1)
+                this_time = flagged.cells(i,1);
+                this_cell_id = flagged.cells(i,2);
+
+                % Find the track at this time. 
+                this_track = track_matrix(:,this_time)==this_cell_id;
+
+                % Set this cell off. 
+                cell_sel_mat(this_track, this_time) = 0;
+
+            end
         end
+    else
+        disp('no flaggs found');
     end
+    
+catch
+    
+    error('Track flags failed!')
+    
 end
 
 % Cut out short tracks.
@@ -538,7 +546,6 @@ TOOL.Visible='on';
     end
 
 % Initialize the cell track variables. 
-
     function initialize_tracks( indices )
         
         %Default is to turn all tracks 'on'. 
@@ -1240,6 +1247,10 @@ TOOL.Visible='on';
             TB_gd = guidata(TOOL);            
             TB_gd.draw_cells()
             
+        
+        case 'p'
+            
+            pan;
             
             
         %otherwise  

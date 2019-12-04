@@ -185,6 +185,8 @@ function SAVE_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+% Define channel str. 
+channel_str = ['seg_channel_',pad(num2str(1),2,'left','0')];
 disp('Saving data....')
 %Get track_obj
 track_obj = getappdata(0,'track_obj');
@@ -213,10 +215,10 @@ if ~isempty( drawn_cells )
 
         %Load frame file.
         F = load(frame_files{f});
-        [Y,X,Z] = size(F.frame_obj.BW);    
+        [Y,X,Z] = size(F.frame_obj.(channel_str).BW);    
 
         % Define the dimensionality. 
-        dims = length(F.frame_obj.centroids{1});
+        dims = length(F.frame_obj.(channel_str).centroids{1});
         
         %Loop over cells.  
         for c = idx
@@ -263,26 +265,26 @@ if ~isempty( drawn_cells )
             end
             
             %Append frame_obj with new cell. 
-            F.frame_obj.PixelIdxList{end+1} = find(full_mask);
-            F.frame_obj.centroids{end+1} = ctr;
-            F.frame_obj.contours{end+1} = [px,py];
+            F.frame_obj.(channel_str).PixelIdxList{end+1} = find(full_mask);
+            F.frame_obj.(channel_str).centroids{end+1} = ctr;
+            F.frame_obj.(channel_str).contours{end+1} = [px(:),py(:)];
         end
 
         % Remove duplicates that were drawn repeatedly. This is needed when
         % you do intermediate saving. 
-        all_ctr = round(cell2mat(F.frame_obj.centroids'));                
+        all_ctr = round(cell2mat(F.frame_obj.(channel_str).centroids'));                
         D_mat = pdist2(all_ctr,all_ctr);
         sel_mat = D_mat==0 & ~eye(size(all_ctr,1));
         [i,~] = find(tril(sel_mat));
         sel_indices = setdiff([1:size(all_ctr,1)],i);
-        F.frame_obj.PixelIdxList =  F.frame_obj.PixelIdxList(sel_indices);
-        F.frame_obj.centroids = F.frame_obj.centroids(sel_indices);
-        F.frame_obj.contours  = F.frame_obj.contours(sel_indices);
+        F.frame_obj.(channel_str).PixelIdxList =  F.frame_obj.(channel_str).PixelIdxList(sel_indices);
+        F.frame_obj.(channel_str).centroids = F.frame_obj.(channel_str).centroids(sel_indices);
+        F.frame_obj.(channel_str).contours  = F.frame_obj.(channel_str).contours(sel_indices);
         
         % Update the BW. 
-        F.frame_obj.BW = zeros(size(F.frame_obj.BW));
-        px = cat(1,F.frame_obj.PixelIdxList{:});
-        F.frame_obj.BW(px) = 1;
+        F.frame_obj.(channel_str).BW = zeros(size(F.frame_obj.(channel_str).BW));
+        px = cat(1,F.frame_obj.(channel_str).PixelIdxList{:});
+        F.frame_obj.(channel_str).BW(px) = 1;
         
         %Save frame_obj. 
         frame_obj = F.frame_obj;

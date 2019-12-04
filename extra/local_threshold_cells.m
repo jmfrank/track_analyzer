@@ -5,13 +5,13 @@
 
 %We get the assignment to a cell for free... 
 
-function [stats, assignment] = local_threshold_cells( img, img_filter, frame_obj, params)
+function [stats, assignment] = local_threshold_cells( img, img_filter, frame_obj, indices, params)
 
 % Image channel
 channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
 %Loop over cells. 
-n_cells = length(frame_obj.(channel_str).PixelIdxList);
+n_cells = length(indices);
 
 %Figure out if the segmentation was based on the 2D image...
 seg_dim = size(frame_obj.(channel_str).centroids{1},2);
@@ -31,7 +31,7 @@ for i = 1:n_cells
         
         case 2
             %2D index. 
-            I2d = frame_obj.(channel_str).PixelIdxList{i};
+            I2d = frame_obj.(channel_str).PixelIdxList{indices(i)};
             %Convert to 3D mask.
             bw = false( size(img,1), size(img,2));
             bw(I2d) = 1;
@@ -42,7 +42,7 @@ for i = 1:n_cells
             
         case 3
             
-            this_cell = frame_obj.(channel_str).PixelIdxList{i};
+            this_cell = frame_obj.(channel_str).PixelIdxList{indices(i)};
             
             
     end
@@ -74,7 +74,7 @@ stats = regionprops(logical(BW), 'Centroid', 'PixelIdxList', 'Area');
 
 %Assignment
 spot_centroids = cat(1,stats.Centroid);
-cell_centroids = cat(1,frame_obj.(channel_str).centroids{:});
+cell_centroids = cat(1,frame_obj.(channel_str).centroids{indices});
 if seg_dim == 2 && length(size(BW))==2
     D = pdist2(spot_centroids, cell_centroids);
 elseif seg_dim ==2 && length(size(BW)) ==3
@@ -86,8 +86,9 @@ end
 
 [~,assignment] = min(D,[],2);
     
-A = num2cell(assignment);
+A = num2cell(indices(assignment));
 [stats.assignment] = A{:};
+
 end
 
 

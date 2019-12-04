@@ -83,13 +83,13 @@ track_counter=0;
     %Initialize tracking by adding all objects in start_frame frame as new
     %tracks.
     old_ids = [1:length(data.frame_obj.(channel_str).centroids)];
+    % Remove flagged data. 
+    old_ids = setdiff(old_ids, flags( flags(:,1) == start_frame, 2));
     
     % Inialize old_centroids
     old_centroids = cell2mat(data.frame_obj.(channel_str).centroids(old_ids)');
     old_centroid_loc = zeros(1,length(data.frame_obj.(channel_str).centroids));
 
-    % Remove flagged data. 
-    old_ids = setdiff(old_ids, flags( flags(:,1) == start_frame, 2));
     for i = 1:length(old_ids)
        obj.tracks{i}   = [start_frame, old_ids(i), old_centroids(i,:)];
        old_centroid_loc(old_ids(i)) = i;

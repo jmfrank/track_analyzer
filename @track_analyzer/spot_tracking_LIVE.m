@@ -26,6 +26,16 @@ end
 %Get segmentation files 
 seg_files = obj.get_frame_files();
 
+% Flags. 
+if isfield(obj.exp_info,'flagged')
+    disp('Found flagged data')
+    
+    flags = obj.exp_info.flagged.cells;
+    
+else
+    flags = []
+end
+
 %LSM time series goes Z first, then time. For each time point, load the
 %Z-stack at time t, then max project and segment. 
 for t = frames
@@ -39,6 +49,13 @@ for t = frames
     %Load frame obj to get segmented cells. 
     load(seg_files{t}, 'frame_obj');
     
+    % Deal with flags.
+    indices = 1:length(frame_obj.(channel_str).centroids);
+    if ~isempty(flags)
+        ignore = flags(flags(:,1)==t,2);
+        indices = setdiff(indices,ignore);
+    end
+        
     %Optional smoothing step.
     if step.smooth_img
        
@@ -51,14 +68,14 @@ for t = frames
         % Using the nuclear masks, subtract the median/mean intensity value
         % from each cell nuclei. This will prevent large gradients at
         % nuclear edge. 
-        img = subtract_local_backgroud(img, frame_obj.(channel_str)) ;
+        img = subtract_local_backgroud(img, frame_obj.(channel_str), indices) ;
     end
     
     %New LoG filter in 3D. Using fast implementation.
     img_filter = -log_filter_3D(img, params.log_sigma);
 
     %Adding a local thresholding algorithm. Stats contains centroids and cell assignments.  
-    stats = local_threshold_cells( img, img_filter, frame_obj, params);
+    stats = local_threshold_cells( img, img_filter, frame_obj, indices, params);
         
     %Check if there were any ROI's
     if( length( stats )==0 )
@@ -207,22 +224,19 @@ end
 
 reader.close();
 
-
 end
 
 
 %% 
 
-function img = subtract_local_backgroud(img, frame_obj)
-
-    % Loop over cell nuclei in BW. 
-    n = length(frame_obj.PixelIdxList);
+function img = subtract_local_backgroud(img, frame_obj, indices)
     
-    for i = 1:n
+    % Loop over cell nuclei in BW.     
+    for i = 1:length(indices)
         
         bw = false(size(frame_obj.BW));
         
-        bw( frame_obj.PixelIdxList{i} ) = 1;
+        bw( frame_obj.PixelIdxList{indices(i)} ) = 1;
         
         mean_val = mean( img(bw));
         %median_val = median( img(bw));

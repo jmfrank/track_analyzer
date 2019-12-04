@@ -132,10 +132,8 @@ obj.exp_info.spot_track_params=params;
 end
 
 
-%%
 
-%Default parameters. 
-
+%% Default parameters. 
 function step = default_params( step )
 
 %List of all default parameters. 

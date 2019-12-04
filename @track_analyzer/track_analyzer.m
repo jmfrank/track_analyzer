@@ -208,7 +208,15 @@ classdef track_analyzer
            
             obj.exp_info = rmfield(obj.exp_info,field_str);
         end
-                
+          
+        % reset flaggs. 
+        function obj = reset_flags(obj)
+           
+            obj = obj.rm_info_field('drawn_cells_frames');
+            obj = obj.rm_info_field('drawn_cells');
+            obj = obj.rm_info_field('flagged');
+        end
+        
         %Retrieve segmentation files
         function seg_files = get_frame_files(obj) 
             
