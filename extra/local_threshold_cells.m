@@ -19,7 +19,7 @@ seg_dim = size(frame_obj.(channel_str).centroids{1},2);
 
 
 %Dimensions
-[w,l,h] = size(img);
+[w, l, h] = size(img);
 
 %Empty image to fill
 BW = zeros(size(img));
@@ -62,7 +62,7 @@ for i = 1:n_cells
     
     %If we have pixels, continue. 
     if(sum(sel)==0)
-        continue
+    %    continue
     end
     
     %Add pixels to mask. 
@@ -92,7 +92,17 @@ A = num2cell(indices(assignment));
 end
 
 
-    
+%%
+
+
+% for c = 1:n_cells
+%     
+%     ctr = frame_obj.(channel_str).centroids{c};
+%     
+%     text(ctr(1),ctr(2),num2str(c),'color','w')
+% end
+
+
 %     %% Plotting and other functionalities to ignore for now. 
 %     function plot_stuff
 %     

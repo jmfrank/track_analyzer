@@ -26,7 +26,7 @@ for i = 1:size(centers,1)
         
     %approximate center. 
     ctr = round(centers(i,:));
-
+       
     %Create bounding box
     x = ctr(1)-params.search_radius:ctr(1)+params.search_radius;
     sel_x = x > 0 & x <= w;

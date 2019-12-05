@@ -40,6 +40,13 @@ for t = frames
     %zero-valued pixels. 
     %img = fill_edges(img);
     
+    %% initial smoothing
+    if step.smooth_img
+        
+        img = imgaussfilt3(img, params.smoothing_sigma);
+        
+    end
+        
     %% Subtract local background? 
     if step.subtract_local_background 
         

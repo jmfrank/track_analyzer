@@ -10,10 +10,6 @@ debug = 0;
 % number of centroids. 
 N = length(stats);
 
-% Rebuild the thresholded image using stats.
-img_thresh = false(size(BW));
-img_thresh( cat(1,stats.PixelIdxList) ) = 1;
-
 %Get vectors of peak centers and mean-intensities
 centers = cat(1,stats.Centroid);
 
@@ -46,7 +42,9 @@ for i = 1:N
     %Select the roi (use all z)
     img_sub_stack = double(img(y,x,z));
     
-    % Substack of this centroid.
+    % Substack of this centroid's mask.
+    img_thresh = false(size(BW));
+    img_thresh( stats(i).PixelIdxList ) = 1;
     fg_sub_stack = img_thresh(y,x,z);
     
     % Get roi in cell BW.
@@ -56,18 +54,32 @@ for i = 1:N
     this_bg = imdilate(fg_sub_stack, B) - imdilate(fg_sub_stack, A);
     
     % Now multiply by cell mask.
-    this_fg = logical(fg_sub_stack.*bg_sub_stack);
     this_bg = logical(this_bg.*bg_sub_stack);
     
     % Calculate mean bg intensityies.
     bg_int = img_sub_stack(this_bg);
     mean_bg = mean( bg_int );
-        
+    bg_std  = std(bg_int);
+    
+    % Create threshold for foreground pixels based on bg+ std*X. This
+    % allows more accurate measurement of blob wrt local background
+    % intensities. 
+    %fg_thresh = mean_bg + params.STD_threshold*bg_std;
+    %fg_mask = img_sub_stack >= fg_thresh & imdilate(fg_sub_stack, A).*bg_sub_stack;
+    %S = regionprops(fg_mask,'Area','PixelIdxList');
+    % Take maximum size region. 
+    %[~,idx] = max([S.Area]);
+    %this_fg = S( idx ).PixelIdxList;
+    %this_fg_mask = false(size(fg_mask));
+    %this_fg_mask(this_fg) = 1;
+    this_fg = find(fg_sub_stack);
+    this_fg_mask = fg_sub_stack;
+    
     %Background subtracted foreground values
     fg_int = img_sub_stack( this_fg ) - mean_bg;
     
     %foreground coordinates
-    [Y,X,Z] = ind2sub(size(img_sub_stack),find(this_fg));
+    [Y,X,Z] = ind2sub(size(img_sub_stack),this_fg);
     
     %Center of mass. 
     M = sum(fg_int);
@@ -84,11 +96,11 @@ for i = 1:N
     fit(i).cell_id  = stats(i).assignment;
     
     % Size of blob
-    fit(i).size     = sum(this_fg(:));
+    fit(i).size     = length(this_fg);
     
     % Pixel idx of blobs. 
     pixels = false(size(img));
-    pixels(y,x,z) = this_fg;
+    pixels(y,x,z) = this_fg_mask;
     fit(i).PixelIdxList = find(pixels);
     
     %Debug section
