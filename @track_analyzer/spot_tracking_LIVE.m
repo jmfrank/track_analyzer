@@ -112,7 +112,7 @@ for t = frames
     if step.debug
         figure(10)
         clf
-        imshow3D(img_filter);
+        imshow3D(img);
         hold on
         %Concat xy coordinates of centroids
         centroids = cat(1,stats.Centroid);
@@ -277,6 +277,10 @@ function step = default_step( step )
 %List of all default parameters. 
 dstep.max_fits_per_nucleus=0;
 dstep.debug=0;
+dstep.sizing=0;
+dstep.smooth_img=0;
+dstep.subtract_local_background=0;
+dstep.merge_duplicates=0;
 
 S  = fieldnames( dstep );
 

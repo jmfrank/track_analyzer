@@ -631,7 +631,7 @@ disp(['Started frame: ',num2str(t)])
         disp(['Finished frame:     ',num2str(t),' Found ',num2str(nFound),' cells.'])
         
         % Display parameters. 
-        params
+        %params
 end
 
 

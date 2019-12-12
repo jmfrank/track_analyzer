@@ -47,9 +47,9 @@ h2_y = reshape(h2,[length(h2),1]);
 
 %% Now convolve the image. 
 try % utilize gpu. 
-    img = gpuArray(img);
-    I_1 = imfilter( imfilter(img,h1_x,'same','replicate'),h2_y,'same','replicate');
-    I_2 = imfilter( imfilter(img,h2_x,'same','replicate'),h1_y,'same','replicate');
+    img_g = gpuArray(img);
+    I_1 = imfilter( imfilter(img_g,h1_x,'same','replicate'),h2_y,'same','replicate');
+    I_2 = imfilter( imfilter(img_g,h2_x,'same','replicate'),h1_y,'same','replicate');
     img_filt = gather(I_1 + I_2);
 catch
     I_1 = imfilter( imfilter(img,h1_x,'same','replicate'),h2_y,'same','replicate');

@@ -241,20 +241,23 @@ disp(['Started frame: ',num2str(t)])
     %Laplacian. 
     [L_imxx, L_imxy] = gaussgradient2D_sep(imx,sigmagradient);
     [L_imyx, L_imyy] = gaussgradient2D_sep(imy,sigmagradient);
-    clear imx imy  
+   
+    if ~step.debug; clear imx imy; end
+    
     Mag_Lim = L_imxx + L_imyy;% + L_imxy + L_imyx; % + L_imzz;
     Mag_Lim = Mag_Lim.*(Mag_Lim>0);
     
     Det_hessian = L_imxx.*L_imyy - L_imxy.*L_imyx;
-    clear L_imxx L_imxy L_imyx L_imyy
+    
+    if ~step.debug; clear L_imxx L_imxy L_imyx L_imyy; end
     Det_hessian = Det_hessian.*(Det_hessian<0);
     
     X=gamma-((alpha*Mag_fim + beta*Mag_Lim + epsilon*abs(Det_hessian)) ./ delta);
-    clear Mag_fim Mag_Lim Det_hessian
+    if ~step.debug; clear Mag_fim Mag_Lim Det_hessian; end
     Multi=0.5*(tanh(X)+1);% masking function
     
     J=(double(G).*Multi); % masked image applied on smoothened image
-    clear X Multi G
+    if ~step.debug; clear X Multi G; end
     
     %Estimate threshold by histogram. 
     if step.threshold_by_histogram 
@@ -514,7 +517,16 @@ disp(['Started frame: ',num2str(t)])
     if(~isfield(stats,'PixelList'))
         error('No cells found!')
     end
-
+    
+    %% Mask using different channel? 
+    if step.mask
+       fname = [exp_info.nuc_seg_dir,'frame_',sprintf('%04d',t),'.mat'];
+       F = load(fname,'frame_obj');
+       mask_channel_str = ['seg_channel_',pad(num2str(params.mask_channel),2,'left','0')];
+       BW = BW.*F.frame_obj.(mask_channel_str).BW;
+       Con=bwconncomp(logical(BW),nconn_BW);
+       stats = regionprops(Con,'Centroid','Area','PixelList','PixelIdxList');
+    end
     %% Create frame_obj and save. 
     frame_obj = struct;
     % Image channel
@@ -524,7 +536,10 @@ disp(['Started frame: ',num2str(t)])
     counter = 1;
     rg_all=[];
     %Empty BW. 
-    BW = zeros(size(BW));
+    BW = false(size(BW));
+    %Boundary pixels. 
+    borders = border_frame( size(BW) );
+
     for i = 1:length(stats)
             if (length(stats(i).PixelIdxList) < AbsMinVol)
                 continue
@@ -543,9 +558,16 @@ disp(['Started frame: ',num2str(t)])
             end
             
             %Fill in BW. 
+            this_cell = false(size(BW));
+            this_cell(stats(i).PixelIdxList) = 1;
             BW(stats(i).PixelIdxList) = 1;
+            
+            %Check if cell touches boundary. 
+            frame_obj.(channel_str).touches_border(counter) = any(this_cell.*borders,'all');
+            
             frame_obj.(channel_str).PixelIdxList{counter} = stats(i).PixelIdxList;
             frame_obj.(channel_str).centroids{counter}    = stats(i).Centroid;
+            
             counter = counter + 1;
     end
     
@@ -579,7 +601,13 @@ disp(['Started frame: ',num2str(t)])
         
 end
 
+function plot_text(stats)
 
+for i = 1:length(stats)
+   text(stats(i).Centroid(1),stats(i).Centroid(2),num2str(i),'color','w') 
+end
+
+end
 
 %Parallel saving technique
 function parsave(fname, frame_obj, channel_str)
@@ -644,7 +672,7 @@ dstep.channel=1;
 dstep.merger=0;
 dstep.gaussian_filter = 0;
 dstep.imclose = 0;
-
+dstep.mask = 0;
 S  = fieldnames( dstep );
 
 for i = 1:length(S)
