@@ -1,0 +1,70 @@
+# CompilerName=gcc
+# Mode=optim
+ninja_required_version = 1.3
+
+# Basic folders
+root = .
+builddir = $root/build/glnxa64
+matlabdir = /usr/local/MATLAB/R2019b
+startdir = /media/data/Dropbox/code_bank/matlab/sandbox_guan/cell_tracking/track_analyzer/image_functions
+
+# Toolchain information
+cc = gcc
+cxx = /usr/bin/g++
+linker = gcc
+linkerxx = /usr/bin/g++
+
+cflags =  -fexceptions -fPIC -fno-omit-frame-pointer -pthread -D_GNU_SOURCE -DMATLAB_MEX_FILE  -O2 -fwrapv -DNDEBUG -fvisibility=hidden -std=c99 -I "$root" -I "$startdir" -I "$matlabdir/extern/include" -I "$root/interface" -I "$matlabdir/simulink/include" -I "$matlabdir/rtw/c/src" -I "$matlabdir/rtw/c/src/ext_mode/common" -I "$matlabdir/rtw/c/ert" -I "." -DHAVE_LAPACK_CONFIG_H -DLAPACK_COMPLEX_STRUCTURE -DMW_HAVE_LAPACK_DECLS -DMODEL=diff_gradients_mex -DHAVESTDIO -DUSE_RTMODEL -DUNIX -DMW_NEEDS_VERSION_H -c 
+
+cxxflags =  -fexceptions -fPIC -fno-omit-frame-pointer -pthread -std=c++11 -D_GNU_SOURCE -DMATLAB_MEX_FILE  -O2 -fwrapv -DNDEBUG -fvisibility=hidden -std=c++11 -I "$root" -I "$startdir" -I "$matlabdir/extern/include" -I "$root/interface" -I "$matlabdir/simulink/include" -I "$matlabdir/rtw/c/src" -I "$matlabdir/rtw/c/src/ext_mode/common" -I "$matlabdir/rtw/c/ert" -I "." -DHAVE_LAPACK_CONFIG_H -DLAPACK_COMPLEX_STRUCTURE -DMW_HAVE_LAPACK_DECLS -DMODEL=diff_gradients_mex -DHAVESTDIO -DUSE_RTMODEL -DUNIX -DMW_NEEDS_VERSION_H -c 
+
+ldflags =  -pthread -Wl,--no-undefined  -shared -Wl,--as-needed -Wl,-rpath-link,$matlabdir/bin/glnxa64 -L"$matlabdir/bin/glnxa64" -Wl,-rpath-link,$matlabdir/extern/bin/glnxa64 -L"$matlabdir/extern/bin/glnxa64" -lMatlabDataArray -lmx -lmex -lmat -lm -lstdc++  -o diff_gradients_mex.mexa64 -L"$matlabdir/bin/glnxa64" -lmwordfilt2 -lmwimlincomb_tbb -lmwippfilter -lmwipp -lmwimfilter -lmwnhood -lmwlapack -lmwblas -lemlrt -lcovrt -lut -lmwmathutil 
+
+# Build Rules
+rule cc
+    command = $cc $cflags $in -o $out
+
+rule cxx
+    command = $cxx $cxxflags $in -o $out
+
+rule link
+    command = $linker $in $ldflags
+
+rule linkxx
+    command = $linkerxx $in $ldflags
+
+# Build
+build $builddir/rt_nonfinite.o : cxx $root/rt_nonfinite.cpp
+build $builddir/diff_gradients_data.o : cxx $root/diff_gradients_data.cpp
+build $builddir/diff_gradients_initialize.o : cxx $root/diff_gradients_initialize.cpp
+build $builddir/diff_gradients_terminate.o : cxx $root/diff_gradients_terminate.cpp
+build $builddir/diff_gradients.o : cxx $root/diff_gradients.cpp
+build $builddir/validateattributes.o : cxx $root/validateattributes.cpp
+build $builddir/combineVectorElements.o : cxx $root/combineVectorElements.cpp
+build $builddir/eml_int_forloop_overflow_check.o : cxx $root/eml_int_forloop_overflow_check.cpp
+build $builddir/scalexpAlloc.o : cxx $root/scalexpAlloc.cpp
+build $builddir/ordfilt2.o : cxx $root/ordfilt2.cpp
+build $builddir/abs.o : cxx $root/abs.cpp
+build $builddir/padarray.o : cxx $root/padarray.cpp
+build $builddir/repmat.o : cxx $root/repmat.cpp
+build $builddir/imlincomb.o : cxx $root/imlincomb.cpp
+build $builddir/all.o : cxx $root/all.cpp
+build $builddir/diffusioncode.o : cxx $root/diffusioncode.cpp
+build $builddir/power.o : cxx $root/power.cpp
+build $builddir/sqrt.o : cxx $root/sqrt.cpp
+build $builddir/imfilter.o : cxx $root/imfilter.cpp
+build $builddir/indexShapeCheck.o : cxx $root/indexShapeCheck.cpp
+build $builddir/exp.o : cxx $root/exp.cpp
+build $builddir/mat2gray.o : cxx $root/mat2gray.cpp
+build $builddir/gaussgradient.o : cxx $root/gaussgradient.cpp
+build $builddir/svd.o : cxx $root/svd.cpp
+build $builddir/svd1.o : cxx $root/svd1.cpp
+build $builddir/diag.o : cxx $root/diag.cpp
+build $builddir/_coder_diff_gradients_api.o : cxx $root/interface/_coder_diff_gradients_api.cpp
+build $builddir/_coder_diff_gradients_mex.o : cxx $root/interface/_coder_diff_gradients_mex.cpp
+build $builddir/diff_gradients_emxutil.o : cxx $root/diff_gradients_emxutil.cpp
+build $builddir/_coder_diff_gradients_info.o : cxx $root/interface/_coder_diff_gradients_info.cpp
+build $builddir/cpp_mexapi_version.o : cxx $matlabdir/extern/version/cpp_mexapi_version.cpp
+
+# Link
+build $root/diff_gradients_mex.mexa64 : linkxx $builddir/rt_nonfinite.o $builddir/diff_gradients_data.o $builddir/diff_gradients_initialize.o $builddir/diff_gradients_terminate.o $builddir/diff_gradients.o $builddir/validateattributes.o $builddir/combineVectorElements.o $builddir/eml_int_forloop_overflow_check.o $builddir/scalexpAlloc.o $builddir/ordfilt2.o $builddir/abs.o $builddir/padarray.o $builddir/repmat.o $builddir/imlincomb.o $builddir/all.o $builddir/diffusioncode.o $builddir/power.o $builddir/sqrt.o $builddir/imfilter.o $builddir/indexShapeCheck.o $builddir/exp.o $builddir/mat2gray.o $builddir/gaussgradient.o $builddir/svd.o $builddir/svd1.o $builddir/diag.o $builddir/_coder_diff_gradients_api.o $builddir/_coder_diff_gradients_mex.o $builddir/diff_gradients_emxutil.o $builddir/_coder_diff_gradients_info.o $builddir/cpp_mexapi_version.o 
