@@ -1,6 +1,8 @@
 %% Use imclose
 function BW = close_filter(BW, imclose_r)
   
+    stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
+
     %Now use imclose to remove gaps. Operate on individual cells so
     %that we minimize connecting cells that are close together. 
     se= strel('disk',imclose_r,8);
