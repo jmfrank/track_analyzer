@@ -3,8 +3,6 @@ classdef track_analyzer
     
     properties (SetAccess = private)
         
-        %Store the experimental info (i.e. file directories, experimental parameters, etc. 
-        exp_info = {};
         
         % The trajectories stored in a cell array, one T x n_dim per particle
         tracks = {};
@@ -33,6 +31,10 @@ classdef track_analyzer
         results = []; %Results from nascent RNA spot localization
         nuc_cyto_data = [];
         tags = []; %Tags for identifying bleached tracks, bad tracks, etc. 
+        
+        %Store the experimental info (i.e. file directories, experimental parameters, etc. 
+        exp_info = {};
+        
     end
      
     
