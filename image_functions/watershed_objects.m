@@ -60,9 +60,10 @@ function [BW, stats] = watershed_objects(BW, nconn_BW, AbsMaxVol, h_min_depth, h
             new_idx = cat(1,stats.PixelIdxList);
             BW(new_idx) = 1;
             
+            disp('Finished watershed')
+
         case 3
             
-            disp('Finished watershed')
 
             %Distance transform scales. 
             scales = [px_size(1),px_size(2), px_size(3)*z_effect];
@@ -153,5 +154,8 @@ function [BW, stats] = watershed_objects(BW, nconn_BW, AbsMaxVol, h_min_depth, h
             %Add in new regions
             new_idx = cat(1,stats.PixelIdxList);
             BW(new_idx) = 1;
+            
+            disp('Finished watershed')
+
     end
 end

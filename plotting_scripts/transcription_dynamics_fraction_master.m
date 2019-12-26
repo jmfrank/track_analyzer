@@ -33,7 +33,12 @@ for g = 1:length(groups)
     %Intensity vector
     INT = [];
     %Loop over experiments
+    if length(exp_ids) > 1
+        error('More than one experiment is not supported!!');
+    end
+    
     for i = 1:length(exp_ids)
+        
         exp_ids(i);
         %Load experiment. 
         info.exp_id=exp_ids(i);

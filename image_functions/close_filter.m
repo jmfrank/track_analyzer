@@ -8,38 +8,88 @@ function BW = close_filter(BW, imclose_r)
     se= strel('disk',imclose_r,8);
     new_BW= zeros(size(BW));
 
+    dims=length(size(BW));
+    
+    switch dims
+        
+        case 2
+            
 
-    for c = 1:length(stats)
-        X = stats(c).PixelList(:,1);
-        Y = stats(c).PixelList(:,2);
 
-        x_range = [min(X):max(X)];
-        y_range = [min(Y):max(Y)];
 
-        %Need to make a sub-img! 
-        sub_img = false(length(y_range),length(x_range));
-        %Shift og pixels to sub_img pixels. 
-        X = X - x_range(1) + 1;
-        Y = Y - y_range(1) + 1;   
-        %Get index. 
-        ind = sub2ind(size(sub_img),Y,X);
-        sub_img(ind) = 1;
-        %Close. 
-        sub_img = imclose(sub_img,se);
+            for c = 1:length(stats)
+                X = stats(c).PixelList(:,1);
+                Y = stats(c).PixelList(:,2);
 
-        %Find closed coordinates. 
-        [Y,X] = ind2sub(size(sub_img),find(sub_img));
-        %Shift back into place. 
-        X = X + x_range(1) - 1;
-        Y = Y + y_range(1) - 1;
+                x_range = [min(X):max(X)];
+                y_range = [min(Y):max(Y)];
 
-        %New index. 
-        ind = sub2ind(size(BW),Y,X);
+                %Need to make a sub-img! 
+                sub_img = false(length(y_range),length(x_range));
+                %Shift og pixels to sub_img pixels. 
+                X = X - x_range(1) + 1;
+                Y = Y - y_range(1) + 1;   
+                %Get index. 
+                ind = sub2ind(size(sub_img),Y,X);
+                sub_img(ind) = 1;
+                %Close. 
+                sub_img = imclose(sub_img,se);
 
-        %Fill in the large image. 
-        new_BW(ind) = 1;            
+                %Find closed coordinates. 
+                [Y,X] = ind2sub(size(sub_img),find(sub_img));
+                %Shift back into place. 
+                X = X + x_range(1) - 1;
+                Y = Y + y_range(1) - 1;
 
+                %New index. 
+                ind = sub2ind(size(BW),Y,X);
+
+                %Fill in the large image. 
+                new_BW(ind) = 1;            
+
+            end
+            BW = logical(new_BW);
+            
+        case 3
+                    
+            for c = 1:length(stats)
+                X = stats(c).PixelList(:,1);
+                Y = stats(c).PixelList(:,2);
+                Z = stats(c).PixelList(:,3);
+
+                x_range = [min(X):max(X)];
+                y_range = [min(Y):max(Y)];
+                z_range = [min(Z):max(Z)];
+
+                %Need to make a sub-img! 
+                sub_img = false(length(y_range),length(x_range),length(z_range));
+                %Shift og pixels to sub_img pixels. 
+                X = X - x_range(1) + 1;
+                Y = Y - y_range(1) + 1;
+                Z = Z - z_range(1) + 1;
+                %Get index. 
+                ind = sub2ind(size(sub_img),Y,X,Z);
+                sub_img(ind) = 1;
+                %Close. 
+                sub_img = imclose(sub_img,se);
+
+                %Find closed coordinates. 
+                [Y,X,Z] = ind2sub(size(sub_img),find(sub_img));
+                %Shift back into place. 
+                X = X + x_range(1) - 1;
+                Y = Y + y_range(1) - 1;
+                Z = Z + z_range(1) - 1;
+                %New index. 
+                ind = sub2ind(size(BW),Y,X,Z);
+                %Fill in the large image. 
+                new_BW(ind) = 1;
+            end
+            
+            BW = logical(new_BW);
+
+            
     end
-    BW = logical(new_BW);
+    
+    
 
 end

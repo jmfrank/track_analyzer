@@ -263,10 +263,12 @@ disp(['Started frame: ',num2str(t)])
     if step.threshold_by_histogram 
         P = prctile(J(:),params.percentile);
         thrshlevel = P;
+        BW  = J >= thrshlevel;
+    else
+        BW = J >= params.simple_threshold;
     end
     
-    %Simple binarization. 
-    BW  = J >= thrshlevel;
+    
     
     if step.debug
        imshow3D(J) 
@@ -531,7 +533,7 @@ disp(['Started frame: ',num2str(t)])
     frame_obj = struct;
     % Image channel
     channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
-
+    
     %Add pixel list/centroid for each region to frame_obj
     counter = 1;
     rg_all=[];

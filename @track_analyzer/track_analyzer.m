@@ -99,7 +99,7 @@ classdef track_analyzer
             elseif isfield(obj.exp_info.flagged,'cells')
                 
                 cells = obj.exp_info.flagged.cells;
-                flagged = []
+                flagged = [];
                 %Loop over tracks. Look for flagged cells. 
                 for i = 1:length(obj.tracks)
                     
@@ -227,7 +227,7 @@ classdef track_analyzer
             if(isfield(obj.exp_info,'seg_files'))
                 seg_files = obj.exp_info.seg_files;
             else
-                f = dir([obj.exp_info.nuc_seg_dir,'/*.mat']);
+                f = dir([obj.exp_info.nuc_seg_dir,'/frame_*.mat']);
                 A = strvcat(f.name);
                 B = repmat(obj.exp_info.nuc_seg_dir,[size(A,1),1]);
                 seg_files = cellstr([B,A]);

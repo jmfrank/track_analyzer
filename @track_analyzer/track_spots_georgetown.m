@@ -124,7 +124,8 @@ end
 
 disp(['Total missed:',num2str(bad_sum),' out of ',num2str(length(ids))])
 %Add spot_tracks to obj
-obj.spot_tracks = spot_tracks; 
+sel = cellfun(@(x) ~isempty(x), spot_tracks);
+obj.spot_tracks = spot_tracks(sel); 
 
 %Write tracking params to exp_info
 obj.exp_info.spot_track_params=params;

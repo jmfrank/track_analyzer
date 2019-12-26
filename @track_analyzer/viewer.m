@@ -191,6 +191,11 @@ else
             %Close reader
             reader.close();
             clear this_img
+        elseif T==1
+            stack=get_stack(reader,T,step.channel);
+            Img{1}=max(stack,[],3);
+            frame2img=[1,1,1];
+            Z=1
         else
             error('no maxp available');
 
