@@ -38,7 +38,7 @@ for i = 1:length(pairs)
     % Send to master script to get fraction of cells. 
     [f_curves, t_vals, INT]  = transcription_dynamics_fraction_master( info, groups, labels, step, params);
     % Get pulse durations. 
-    PULSE = transcription_dynamics_pulse_master(info,groups,labels,step,params);
+    PULSE = transcription_dynamics_pulse_master(info, groups, labels, step, params);
     
     %Get before frames vector. 
     these_frames_before = frames_before-length(f_curves{1})+1:frames_before;

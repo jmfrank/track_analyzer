@@ -4,8 +4,6 @@ function BW = adaptive_thresholding(I, J, params)
 
     p_val = params.percentile;
 
-    %Enforce more criteria for thresholing cells. 
-    real_bg = mean(J(sel));
     %Threshold starting point. 
     params.thresh_start = prctile(J(:),p_val);
         if params.thresh_start == 0
@@ -23,5 +21,5 @@ function BW = adaptive_thresholding(I, J, params)
     %First smooth image. 
     I_sm = imgaussfilt(I,params.I_sm_sigma);
     %Perform iterative thresholding. 
-    BW = iterative_thresholding(I_sm, J,real_bg, params );
+    BW = iterative_thresholding(I_sm, J, params );
 end

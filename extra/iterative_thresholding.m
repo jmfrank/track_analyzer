@@ -6,7 +6,7 @@
 %thresh start is the starting threshold level. 
 %iterations is 
 
-function BW = iterative_thresholding(I, J, real_bg, params )
+function BW = iterative_thresholding(I, J, params )
 
 
 %For now, just hard code the peak range 

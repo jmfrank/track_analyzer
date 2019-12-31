@@ -144,7 +144,7 @@ disp(['Started frame: ',num2str(t)])
         option=params.option;
 
         % nconn value for neighborhood calculations
-        nconn_BW = params.nconn_BW;
+        nconn_BW = params.nconnBW;
 
         MeanFilterSensitivity = params.MeanFilterSensitivity;
         MeanFilterNeighborhood = params.MeanFilterNeighborhood;
@@ -192,18 +192,18 @@ disp(['Started frame: ',num2str(t)])
             if ~strcmp(class(I),'uint8')
                 I = uint8(I);
             end
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
+            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1));
         elseif image_bits==12
             
             %Rescale to 16 bit? 
             I = uint16(I* (2^16-1)/(2^12-1));
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
+            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1));
 
         elseif image_bits==16
             if ~strcmp(class(I),'uint16')
                 I = uint16(I);
             end
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1:2));
+            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1));
 
         end
         
@@ -322,7 +322,7 @@ disp(['Started frame: ',num2str(t)])
         %First smooth image. 
         I_sm = imgaussfilt(I,params.I_sm_sigma);
         %Perform iterative thresholding. 
-        BW = iterative_thresholding(I_sm, J,real_bg, params );
+        BW = iterative_thresholding(I_sm, J, params );
         
         
     %Histogram thresholding. 

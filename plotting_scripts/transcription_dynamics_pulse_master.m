@@ -41,16 +41,9 @@ for g = 1:length(groups)
         indices = find( cellfun('length',track_obj.tracks) >= params.min_length);
                 
         %Check for flagged tracks. 
-        %Check for flagged tracks. 
         if(isfield(track_obj.exp_info,'flagged'))
-            %Might be empty. 
-            if ~isempty( track_obj.exp_info.flagged )
-                flagged_tracks = track_obj.exp_info.flagged.tracks;
-                %Remove flagged tracks from indices. 
-                indices = setdiff(indices,flagged_tracks);
-            end
-            
-
+            flagged = track_obj.get_flagged_tracks;
+            indices = setdiff(indices,flagged);           
         end
         
         %Create cell array for each time
