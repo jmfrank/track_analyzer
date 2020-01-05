@@ -114,7 +114,7 @@ disp(['Started frame: ',num2str(t)])
         sigmagradient=params.sigmagradient;
 
         %%Noise filter parameters
-        h = params.noise_filter; 
+        %h = params.noise_filter; 
 
         %%Perona-Malik based non-linear isotropic diffusion filter
         diffuse_iterations=params.diffuse_iterations;
@@ -123,19 +123,19 @@ disp(['Started frame: ',num2str(t)])
         option=params.option;
 
         %Thresholding
-        thrshlevel = params.thrshlevel;
+        %thrshlevel = params.thrshlevel;
         % nconn value for neighborhood calculations
-        nconn_BW = params.nconn_BW;
-        nconn_BW2= params.nconn_BW2;
+        nconn_BW = params.nconnBW;
+        %nconn_BW2= params.nconn_BW2;
 
         MeanFilterSensitivity = params.MeanFilterSensitivity;
         MeanFilterNeighborhood = params.MeanFilterNeighborhood;
         
         imclose_r = params.imclose_r;   
         
-        xscale         = exp_info.pixel_size(1);
-        yscale         = exp_info.pixel_size(2);
-        zscale         = exp_info.pixel_size(3);
+        %xscale         = exp_info.pixel_size(1);
+        %yscale         = exp_info.pixel_size(2);
+        %zscale         = exp_info.pixel_size(3);
 
 %%%%%%%%%%%%%%% START PROCESSING %%%%%%%%%%%%%%%%
     image_bits     = reader.getBitsPerPixel;

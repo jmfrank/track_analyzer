@@ -378,7 +378,7 @@ update_thresh();
             %Get threshold
             thresh_val =str2double(get(thresh_val_hand,'string'))
             this_plane = Img(:,:,S);
-            p_val = findp(this_plane(:),thresh_val)
+            p_val = findp(Img(:),thresh_val)
              
             %Contours for cell tracking
             H = findobj(gca,'Type','contour');

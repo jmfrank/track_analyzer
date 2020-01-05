@@ -304,7 +304,7 @@ disp(['Started frame: ',num2str(t)])
         end
 
         %Enforce more criteria for thresholing cells. 
-        real_bg = mean(J(sel));
+        %real_bg = mean(J(sel));
         %Threshold starting point. 
         params.thresh_start = prctile(J(:),p_val);
             if params.thresh_start == 0
@@ -324,10 +324,8 @@ disp(['Started frame: ',num2str(t)])
         %Perform iterative thresholding. 
         BW = iterative_thresholding(I_sm, J, params );
         
-        
     %Histogram thresholding. 
     elseif step.threshold_by_histogram 
-        
        
         if length(params.percentile)>1
             p_val = params.percentile(t);
@@ -436,10 +434,7 @@ disp(['Started frame: ',num2str(t)])
         
         BW(all_idx) = 0;
     end
-    
-    
-    %% Now fill in the holes. 
-    BW = imfill(BW,'holes');
+   
 
     %Collect stats. 
     stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
@@ -520,6 +515,14 @@ disp(['Started frame: ',num2str(t)])
 %         new_idx = cat(1,stats(sel).PixelIdxList);
 %         NBW(new_idx) = 1;
 %     end
+
+    %% Now fill in the holes. 
+    if step.FillHoles 
+        BW = imfill(BW,'holes');
+        stats = regionprops(logical(BW),'Centroid','Area','PixelList','PixelIdxList');
+    end
+    
+    
     %% Merge blobs that are very close together. 
     if step.merger
         

@@ -95,8 +95,8 @@ for i = 1:length(matched_blobs)
     not_these_px = cat(1,stats_J(matched_blobs(sel)).PixelIdxList);
     mask(not_these_px) = 0;
     
-    %Change
-    %Sub image of this blob. 
+    % Change
+    % Sub image of this blob. 
     int_vals = J(mask);
     
     %Iterator until histogram is good. 

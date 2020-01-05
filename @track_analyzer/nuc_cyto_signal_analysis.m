@@ -26,6 +26,8 @@ if(debug)
 end
 
 
+% Channel str.
+channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
 Z = obj.exp_info.z_planes;
 T = obj.exp_info.t_frames;
@@ -73,6 +75,8 @@ for t = frames
         
     end
     
+    
+    
     %Clear out bad values (stitching can create 0 valued pixels at edge). 
     zSEL = sig_img == 0;
     sig_img(zSEL) = NaN;
@@ -80,8 +84,8 @@ for t = frames
     msk_img(zSEL) = NaN;
    
     %Loop over detected cells
-    if isfield(frame_obj,'PixelIdxList')
-        n_cells = length(frame_obj.PixelIdxList);
+    if isfield(frame_obj.(channel_str),'PixelIdxList')
+        n_cells = length(frame_obj.(channel_str).PixelIdxList);
     else
         disp(['No cells in frame: ', num2str(t)])
         continue
@@ -95,9 +99,11 @@ for t = frames
         
         % If mask is 3D, then project into 2D. Get center from Z-location
         % of 3D segmented cell.
-        if size_z > 1
+        mask_dims = length(size(frame_obj.(channel_str).BW));
+        
+        if mask_dims == 3
             BW = zeros(size_y,size_x,size_z);
-            px = frame_obj.PixelIdxList{j};
+            px = frame_obj.(channel_str).PixelIdxList{j};
             BW(px)=1;
             % Max project.
             BW = max(BW,[],3);
@@ -107,14 +113,14 @@ for t = frames
             %Create mask. 
             roi_bw_nuc = logical(BW);
             
-            idx = round(frame_obj.centroids{j}(3));
+            idx = round(frame_obj.(channel_str).centroids{j}(3));
             
         %% Estimate z-plane from max intensity.
-        else
+        elseif mask_dims == 2
 
             %Get a 2D mask of this cell....
             BW = zeros(size_y,size_x);
-            px = frame_obj.PixelIdxList{j};
+            px = frame_obj.(channel_str).PixelIdxList{j};
             BW(px) = 1;
             
             %Get pixel coordinates. 
@@ -173,12 +179,12 @@ for t = frames
             sel = [1:n_cells] ~= j;
             % 3D case.
             if size_z > 1
-                ind = cat(1,frame_obj.PixelIdxList{sel});
+                ind = cat(1,frame_obj.(channel_str).PixelIdxList{sel});
                 not_this_cell = false(size_y,size_x,size_z);
                 not_this_cell(ind) = 1;
                 not_this_cell = not_this_cell(:,:,z_planes);
             else
-                ind = cat(1,frame_obj.PixelIdxList{sel});
+                ind = cat(1,frame_obj.(channel_str).PixelIdxList{sel});
                 not_this_cell = false(size_y,size_x);
                 not_this_cell(ind) = 1;
                 %3D mask.
@@ -233,7 +239,8 @@ end
 if(debug);hold off;end
 
 %obj.nuc_cyto_calc = true;
-
+obj=obj.add_nuc_cyto_signal_calcs;
+obj.save;
 %Now 
 end
 

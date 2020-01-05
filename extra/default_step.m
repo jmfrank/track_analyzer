@@ -21,6 +21,7 @@ dstep.merger=0;
 dstep.gaussian_filter = 0;
 dstep.roi = 0;
 dstep.tracks=0;
+dstep.FillHoles=1;
 
 S  = fieldnames( dstep );
 

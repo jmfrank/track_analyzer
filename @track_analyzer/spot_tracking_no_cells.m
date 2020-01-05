@@ -50,7 +50,7 @@ for t = 1:T
             img_filter = -log_filter_3D(img, params.log_sigma);
 
             %Try smoothing image
-            img_filter = imgaussfilt3(img, params.gauss_sigma);
+            %img_filter = imgaussfilt3(img, params.gauss_sigma);
 
             img_bw = img_filter >= params.thresh;
 
