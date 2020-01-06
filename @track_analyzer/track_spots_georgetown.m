@@ -29,10 +29,10 @@ count = 0;
 for i = 1:length(seg_files)
     load(seg_files{i},'frame_obj');
     
-    if isfield(frame_obj.(channel_str),'fit')
-        these_fits = frame_obj.(channel_str).fit;
+    if isfield(frame_obj.(channel_str),params.fit_type)
+        these_fits = frame_obj.(channel_str).(params.fit_type);
     else
-        these_fits = frame_obj.fit;
+        these_fits = frame_obj.(params.fit_type);
     end
     
     if(~isempty(these_fits))
@@ -140,7 +140,7 @@ function step = default_params( step )
 %List of all default parameters. 
 dstep.min_intensity=0;
 dstep.min_snr=0;
-
+dstep.fit_type='fit';
 
 S  = fieldnames( dstep );
 

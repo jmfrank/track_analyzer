@@ -34,7 +34,7 @@ end
 %Parse other inputs. 
 %Input parsing. 
 p = inputParser;
-p.addParameter('indices',[1:length(obj.tracks)]);
+p.addParameter('indices', [1:length(obj.tracks)]);
 p.parse(varargin{:});
 
 %% Display cell contours

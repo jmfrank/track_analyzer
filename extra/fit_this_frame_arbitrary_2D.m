@@ -88,6 +88,9 @@ for i = 1:N
     fit(i).real_bg  = mean_bg;
     fit(i).sum_int  = sum(fg_int);
     fit(i).snr      = max(fg_int)/std(bg_int);
+    if isnan(fit(i).snr) | isinf(fit(i).snr)
+        fit(i).snr=0;
+    end
     
     %Assign fit to cell
     fit(i).cell_id  = stats(i).assignment;
