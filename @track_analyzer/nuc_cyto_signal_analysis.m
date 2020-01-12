@@ -108,7 +108,7 @@ for t = frames
             % Max project.
             BW = max(BW,[],3);
             %Get pixel coordinates. 
-            [px_Y,px_X,px_Z] = ind2sub([size_y,size_x,size_z],px);
+            [px_Y, px_X, px_Z] = ind2sub([size_y,size_x,size_z],px);
 
             %Create mask. 
             roi_bw_nuc = logical(BW);

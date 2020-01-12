@@ -55,7 +55,7 @@ function TOOL_BOX_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for TOOL_BOX
 handles.output = hObject;
 handles.draw_cells = @draw_tracks_button_Callback;
-
+handles.step = struct;
 % Update handles structure
 guidata(hObject, handles);
 
@@ -186,7 +186,8 @@ function SAVE_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Define channel str. 
-channel_str = ['seg_channel_',pad(num2str(1),2,'left','0')];
+step = getappdata(0,'step');
+channel_str = ['seg_channel_',pad(num2str(step.channel),2,'left','0')];
 disp('Saving data....')
 %Get track_obj
 track_obj = getappdata(0,'track_obj');
@@ -203,6 +204,10 @@ drawn_cells = getappdata(0,'drawn_cells');
 %Img dimensions. 
 frame_files = track_obj.get_frame_files();
 
+if(~exist(track_obj.exp_info.nuc_seg_dir,'dir'))
+    mkdir(track_obj.exp_info.nuc_seg_dir)
+end
+
 %Loop over frames where there was a new drawn cell. 
 if ~isempty( drawn_cells )
     disp('Exporting cells...');
@@ -214,11 +219,25 @@ if ~isempty( drawn_cells )
         idx = find( [drawn_cells.t] == f );
 
         %Load frame file.
-        F = load(frame_files{f});
-        [Y,X,Z] = size(F.frame_obj.(channel_str).BW);    
+        if exist(frame_files{f}, 'file')
+            
+            F = load(frame_files{f});
+            [Y,X,Z] = size(F.frame_obj.(channel_str).BW);    
 
-        % Define the dimensionality. 
-        dims = length(F.frame_obj.(channel_str).centroids{1});
+            % Define the dimensionality. 
+            dims = length(F.frame_obj.(channel_str).centroids{1});
+        
+        else
+            F=struct('frame_obj',[]);
+            F.frame_obj=struct(channel_str,[]);
+            Y=track_obj.exp_info.img_size(1);
+            X=track_obj.exp_info.img_size(2);
+            Z=track_obj.exp_info.z_planes;
+            dims=2;
+            F.frame_obj.(channel_str)=struct('BW',false([Y,X]),'PixelIdxList',cell(1),'centroids',cell(1),'contours',cell(1));
+            frame_files{f} = [track_obj.exp_info.nuc_seg_dir,'frame_',sprintf('%04d',f),'.mat'];
+            
+        end
         
         %Loop over cells.  
         for c = idx
@@ -293,10 +312,16 @@ if ~isempty( drawn_cells )
     exp_info.drawn_cells = drawn_cells;
     exp_info.drawn_cells_frames = unique(drawn_cells_frames);
     track_obj = track_obj.update_exp_info(exp_info);
-    params.max_dist = track_obj.exp_info.max_dist;
+    try
+        params.max_dist = track_obj.exp_info.max_dist;
+    catch
+        warning('No max dist found. using 1');
+        params.max_dist=1;
+    end
     
     %Now we re-track to include the new cells. Keep in mind, the gui
     %doesn't update with these new tracks!!
+    params.seg_channel=step.channel;
     track_obj = track_obj.track_cells(params);    
 end
 

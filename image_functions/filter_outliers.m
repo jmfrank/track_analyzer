@@ -7,7 +7,7 @@ function BW = filter_outliers(I, BW, OutlierThreshold, MeanFilterNeighborhood )
         high = I > OutlierThreshold;
         
         %Dilate 
-        se = strel('rectangle', MeanFilterNeighborhood(1:2));
+        se = strel('rectangle', [MeanFilterNeighborhood(1), MeanFilterNeighborhood(1)]);
         dil = imdilate(high, se);
         
         %Collect region info. 

@@ -1,4 +1,4 @@
-function BW = filter_objects(BW, min_size, max_size)
+function [BW, stats] = filter_objects(BW, min_size, max_size)
     if nargin==2
         max_size=Inf;
     end

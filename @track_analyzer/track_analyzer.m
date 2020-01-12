@@ -304,7 +304,7 @@ classdef track_analyzer
                     elseif isfield(frame_obj,ch_str)
                         cells{i} = frame_obj.(ch_str).contours;
                     else
-                        error('Channel segmentation not defined');
+                        warning('Channel segmentation not defined');
                     end
                 catch
 

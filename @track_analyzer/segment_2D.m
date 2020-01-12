@@ -7,6 +7,7 @@
 % 10-26-18: now takes vector of threshold values for each time frame.
 function obj = segment_2D(obj, params, step, FORCE_FRAMES)
 
+
 params=default_params(params);
 step=default_step(step);
 
@@ -92,64 +93,32 @@ end
         disp(new_ts)
         parfor g = 1:length(new_ts)
             t = new_ts(g);
-            inner_function( exp_info, Z_cell{t}, params, step, t, reader)
+            inner_function( exp_info, Z_cell{t}, params, t, reader)
         end
     else
         disp('New frames to calculate:')
         disp(num2str(new_ts))
         for t = new_ts
-            inner_function( exp_info, Z_cell{t},params,step,t,reader)
+            inner_function( exp_info, Z_cell{t},params,t,reader)
         end
     end
 disp(['Max frames: ',num2str(T)]);
 
 %Add params to exp_info.
-obj.exp_info.seg_params=params;
-obj.exp_info.seg_steps=step;
+%obj.exp_info.seg_params=params;
 %Always clear out flags in after new segmentation. 
 obj = obj.clear_flags;
 %Auto-save. 
 obj.save; 
 
-obj.save;
-
 
 end
 
 %% Inner function to run 
-function inner_function( exp_info, planes, params, step, t,reader)
+function inner_function( exp_info, planes, params, t,reader)
     
 %Display 
 disp(['Started frame: ',num2str(t)])
-
-%%%%%%%%%%%%%%% PARAMETERS %%%%%%%%%%%%%%%%  
-
-%% Set Segmentation Algorithm Parameter values
-    
-        AbsMinVol = params.AbsMinVol;
-        AbsMaxVol = params.AbsMaxVol; %Maximum voxel per single nucleus
-
-        %%Derivatives Sum (DS) Algorithm
-        alpha = params.alpha;
-        beta = params.beta;
-        gamma = params.gamma;
-        epsilon =params.epsilon;
-        delta = params.delta;
-        sigmagradient=params.sigmagradient;
-
-        %%Perona-Malik based non-linear isotropic diffusion filter
-        diffuse_iterations=params.diffuse_iterations;
-        kappa1=params.kappa1;
-        kappa2=params.kappa2;
-        option=params.option;
-
-        % nconn value for neighborhood calculations
-        nconn_BW = params.nconnBW;
-
-        MeanFilterSensitivity = params.MeanFilterSensitivity;
-        MeanFilterNeighborhood = params.MeanFilterNeighborhood;
-
-        imclose_r = params.imclose_r;   
 
 %%%%%%%%%%%%%%% START PROCESSING %%%%%%%%%%%%%%%%
     image_bits     = reader.getBitsPerPixel;
@@ -162,8 +131,10 @@ disp(['Started frame: ',num2str(t)])
 
     %Get the bio-formats image index corresponding to this z-stack:
     if ZSlicesinStack > 1
-        
-        for i = 1:ZSlicesinStack
+        if isfield(params,'z_range')
+            planes = planes(params.z_range);
+        end
+        for i = 1:length(planes)
             this_plane_img = bfGetPlane(reader,planes(i));
             I(:,:,i)     = this_plane_img;
         end
@@ -174,467 +145,61 @@ disp(['Started frame: ',num2str(t)])
     end
     
     
-    %Reduce i for debugging
-    if(step.debug)
-        %I = I(1:300,1:300,:);
-    end
-    
-    Ie = zeros(size(I));
-    G = Ie; Diff_im = Ie; Fim = Ie; Mag_fim = Ie; Mag_Lim = Ie; Det_hessian = Ie;
-    Sum = Ie; Multi = Ie; J = Ie;
-    
-    %% PRE-PROCESSING STEPS. Filters, and removing outliers. 
-       
-    %PRE-PROCESS image with mean filter if desired
-    if(step.MeanFilter)
+  
+    % use segmenter2D to run segmentation steps. 
+    S = segmenter2D(I, image_bits, params, t);
+    channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
+    seg_steps = exp_info.steps.(channel_str).cells;
+    for i = 1:length(seg_steps)
         
-        if image_bits==8
-            if ~strcmp(class(I),'uint8')
-                I = uint8(I);
-            end
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1));
-        elseif image_bits==12
-            
-            %Rescale to 16 bit? 
-            I = uint16(I* (2^16-1)/(2^12-1));
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1));
-
-        elseif image_bits==16
-            if ~strcmp(class(I),'uint16')
-                I = uint16(I);
-            end
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood(1));
-
-        end
+        disp(seg_steps(i).type);
+        S.(seg_steps(i).type);
         
-        %%%% This step might help bring everything to 16bit levels. Try
-        %%%% manually changing bit size to 16 here. 
-        I = tmp.*65000;
-    end
-    
-    if step.debug
-        newFigure(66); %< debug figure;
-        imshow3D_filter(I);
-        
-    end
-    %Subtract a background value. 
-    if(step.subtract_bg)
-       sel = I <= params.bg;
-       I(sel) = 0;
-    end
-    
-    %CLAHE
-    if(step.CLAHE)
-        I_sm = zeros(size(I));
-        mu = mean(I(:));
-        i_std = std(I(:));
-        norm_min = min(I(:));
-        norm_max = max(I(:));
-        %Set the max val to 4std above mean?
-        %norm_max = 4*i_std + mu;
-            
-        norm_plane = ( I - norm_min ) ./ (norm_max - norm_min );
-        tiles = round([size_y / params.tile_size, size_x / params.tile_size]);
-        I_sm = adapthisteq(norm_plane,'NumTiles',tiles,'ClipLimit',params.ClipLimit); %,'Distribution','exponential','Alpha',0.1);
-            
-        %Replace background 
-        if(step.subtract_bg)
-            I_sm(sel) = 0;
-        end
-       
-        I = I_sm.*65535;
-       
-    end   
-    
-    %% Diffusion 
-
-    %%Step1: Denoising Filters
-    %G(:,:,zslice) = imfilter(I(:,:,zslice), h,'replicate');
-    %%Optional filters median or deconvlucy
-    G = medfilt2(I, params.median_filter(1:2));
-    %G(:,:,zslice) = deconvlucy(G(:,:,zslice),h); %%use the same 'h' as for Gaussian or define new variable
-
-    %%Step2: Perona & Malik non-linear isotropic diffusion filter, refer to
-    %%diffusioncode.m for details, here alter only diffuse_iterations & kappa1       
-    Diff_im = diffusioncode(I, diffuse_iterations, 0.1429, kappa1, kappa2, option);
-
-    %%Step3a: Gauss gradient, 1st derivative of the image, refer to gaussgradient.m for details
-    Fim=mat2gray(Diff_im);
-    [imx,imy]=gaussgradient(Fim,sigmagradient(1));
-    Mag_fim = hypot(imx,imy);
-
-    %%Step3b: Laplacian
-    [L_imxx, L_imxy] = gaussgradient(imx,sigmagradient(1));
-    [L_imyx, L_imyy] = gaussgradient(imy,sigmagradient(1));
-    Mag_Lim = L_imxx+L_imyy;  %Laplacian (trace of the 2D matrix)
-    Mag_Lim=Mag_Lim.*(Mag_Lim>0);
-
-    %%Step3c: Hessian Determniant
-    Det_hessian=L_imxx.*L_imyy-L_imxy.*L_imyx;
-    Det_hessian=Det_hessian.*(Det_hessian<0);
-    %%Step4: Masking function using tanh on the Summed Derivatives from Step3
-    X=gamma-((alpha*Mag_fim + beta*Mag_Lim + epsilon*abs(Det_hessian)) /delta);
-    Multi=0.5*(tanh(X)+1);% masking function
-    J=(double(G).*Multi); % masked image applied on smoothened image
-
-    if(step.debug)
-        newFigure(66)
-        if isfield(params,'percentile')
-            try
-                K=params.percentile(t);
-            catch
-                K=params.percentile;
-            end
-        else
-            K=90;
-        end
-        imshow3D_filter(J,prctile(J(:),K));
-        
-    end 
-
-    %% Different ways to determine threshold. 
-    
-    %Iterative local thresholding. 
-    if step.iterative_thresholding
-        
-        if length(params.percentile)>1
-            p_val = params.percentile(t);
-        else
-            p_val = params.percentile;
-        end
-
-        %Enforce more criteria for thresholing cells. 
-        %real_bg = mean(J(sel));
-        %Threshold starting point. 
-        params.thresh_start = prctile(J(:),p_val);
-            if params.thresh_start == 0
-                warning('Threshold too low');
-                %Calculate the first non-zero percentile and set as
-                %starting percentile. 
-                ps = prctile(J(:),[p_val:0.2:100]);
-                nonzero = ps > 0;
-                params.thresh_start = nonzero(1);
-                
-            end
-            
-        %Incremental change in threshold. 
-        %params.increment = params.thresh_start*0.01;
-        %First smooth image. 
-        I_sm = imgaussfilt(I,params.I_sm_sigma);
-        %Perform iterative thresholding. 
-        BW = iterative_thresholding(I_sm, J, params );
-        
-    %Histogram thresholding. 
-    elseif step.threshold_by_histogram 
-       
-        if length(params.percentile)>1
-            p_val = params.percentile(t);
-        else
-            p_val = params.percentile;
-        end
-        P = prctile(J(:),p_val);
-        thrshlevel = P;
-        BW  = J >= thrshlevel;
-    
-    %Simple binarization. 
-    else
-        if length(params.thrshlevel)>1
-            thrshlevel=params.thrshlevel(t);
-        else
-            thrshlevel=params.thrshlevel;
-        end
-        BW  = J >= thrshlevel;
-    end
-    
-    %% smoothing, filling holes, removing bad blobs. 
-          
-    %Collect stats. 
-    stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
-
-    %Remove very low volumes. 
-    volumes = [stats.Area]';
-    sel = volumes >= AbsMinVol/4;
-    stats = stats(sel);
-
-    %Rebuild BW
-    BW = zeros(size(BW));
-    idx = cat(1,stats.PixelIdxList);
-    BW(idx) = 1;
-    BW = logical(BW);
-
-    if(step.imclose)
-        %Now use imclose to remove gaps. Operate on individual cells so
-        %that we minimize connecting cells that are close together. 
-        se= strel('disk',imclose_r,8);
-        new_BW= zeros(size(BW));
-
-
-        for c = 1:length(stats)
-            X = stats(c).PixelList(:,1);
-            Y = stats(c).PixelList(:,2);
-
-            x_range = [min(X):max(X)];
-            y_range = [min(Y):max(Y)];
-
-            %Need to make a sub-img! 
-            sub_img = false(length(y_range),length(x_range));
-            %Shift og pixels to sub_img pixels. 
-            X = X - x_range(1) + 1;
-            Y = Y - y_range(1) + 1;   
-            %Get index. 
-            ind = sub2ind(size(sub_img),Y,X);
-            sub_img(ind) = 1;
-            %Close. 
-            sub_img = imclose(sub_img,se);
-            
-            %Find closed coordinates. 
-            [Y,X] = ind2sub(size(sub_img),find(sub_img));
-            %Shift back into place. 
-            X = X + x_range(1) - 1;
-            Y = Y + y_range(1) - 1;
-            
-            %New index. 
-            ind = sub2ind(size(BW),Y,X);
-            
-            %Fill in the large image. 
-            new_BW(ind) = 1;            
-            
-        end
-        BW = logical(new_BW);
-    end
-
-    %% Looking for high intensity outliers. 
-    if(step.FilterOutliers)
-       
-        %Estimate background value. 
-        bg_img = I(~BW);
-        mean_bg_value = mean(bg_img(:));
-        
-        %Find outliers using a high threshold. 
-        high = I > params.OutlierThreshold;
-        
-        %Dilate 
-        se = strel('rectangle',params.MeanFilterNeighborhood(1:2));
-        dil = imdilate(high, se);
-        
-        %Collect region info. 
-        stats = regionprops(logical(dil),'PixelIdxList','Image');
-        
-        %Change high-intensity regions to NaN or mean bg value? 
-        all_idx = cat(1,stats.PixelIdxList);
-        I(all_idx) = mean_bg_value;
-        
-        %Fill in missing data with inpaintn
-        %I = inpaintn(I);
-        
-        %Alternatively, we can fill in with background noise?
-        if(step.debug)
-            imshow3D(I);
-        end
-        
-        BW(all_idx) = 0;
     end
    
-
-    %Collect stats. 
-    stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
-
-    %Remove volumes below size threshold. 
-    volumes = [stats.Area]';
-    sel = volumes >= AbsMinVol;
-    stats = stats(sel);
-
-    %Rebuild BW
-    BW = zeros(size(BW));
-    idx = cat(1,stats.PixelIdxList);
-    BW(idx) = 1;
-    BW = logical(BW);
-    
- 
-    
-    %% Connect regions, find objects that are are big enough to be doubles. 
-
-    Con=bwconncomp(logical(BW),nconn_BW);
-    stats = regionprops(Con,'Centroid','Area','PixelList','PixelIdxList');
-    numobj=numel(stats); %total number of segmented objects
- 
-    %New volume list
-    volumes = [stats.Area]';   
-    liar_list = find( volumes > AbsMaxVol);
-    
-   %% Apply 2D watershedding. This only looks at the blobs that are above the AbsMaxVol threshold. 
-    if( step.watershed)
-        disp('Starting watershed')
-        %Make bw of clusters only
-        bw_clust = zeros(size(BW));
-        idx = cat(1,stats(liar_list).PixelIdxList);
-        bw_clust(idx) = 1;
-        %distance transform
-        imgDist = -bwdist(~bw_clust);
-        %Smoothing
-        imgDist = medfilt2(imgDist,[3,3]);
-        %Get seeds 
-        mask = imextendedmin(imgDist,params.h_min_depth,params.h_min_conn); %Seems like smaller neighborhood works better?
-        imgDist = imimposemin(imgDist,mask);
-        imgDist(~bw_clust) = -inf;
-        %Perform marked watershed
-        imgLabel = watershed(imgDist);
-        %Remove background again.
-        imgLabel(~bw_clust) = NaN;
-        stats_fused = regionprops(imgLabel,'Centroid','Area','PixelList','PixelIdxList');
-        %skip first entry. 
-        stats_fused = stats_fused(2:end);
-        
-        %Now get rid of original regions that were fused. 
-        keep = setdiff([1:length(stats)],liar_list);
-        stats = stats(keep);
-        %Now append the fused nuclei stats. 
-        stats = [stats;stats_fused];
-        %Now we need to adjust BW... 
-            BW = zeros(size(BW));
-            %Add in new regions
-            new_idx = cat(1,stats.PixelIdxList);
-            BW(new_idx) = 1;
-        disp('Finished watershed')
-    end
-    
-    %% Error if there's no cells.
-    if(~isfield(stats,'PixelList'))
-        error('No cells found!')
-    end
-%     %% Remove non-circular blobs. 
-%     if step.circular
-%        
-%         stats = regionprops(logical(BW),'Area','Perimeter','PixelIdxList');
-%         allPerimeters = [stats.Perimeter];
-%         allAreas = [stats.Area];
-%         allCircularities = allPerimeters  .^ 2 ./ (4 * pi* allAreas);
-%         sel = allCircularities < 1.4;
-%         NBW = zeros(size(BW));
-%         %Add in new regions
-%         new_idx = cat(1,stats(sel).PixelIdxList);
-%         NBW(new_idx) = 1;
-%     end
-
-    %% Now fill in the holes. 
-    if step.FillHoles 
-        BW = imfill(BW,'holes');
-        stats = regionprops(logical(BW),'Centroid','Area','PixelList','PixelIdxList');
-    end
-    
-    
-    %% Merge blobs that are very close together. 
-    if step.merger
-        
-        %Centroids. 
-        all_ctrs = cat(1,stats.Centroid); 
-        
-        %Pairwise distance. 
-        D = pdist2(all_ctrs,all_ctrs);
-        
-        %Select pair-wise distances less than threshold. 
-        S = D < params.merge_dist;
-        
-        %Get pairs. 
-        [a,b] = find( tril( S ) );
-        
-        %Entries to get rid of. 
-        bad_list = false(1,length(stats));
-        c=0;
-        
-        %Merge algorithm. Loop over pairs, merge if result isn't too large.
-        for m = 1:length(a)
-            id_a = a(m);
-            id_b = b(m);
-            w_a = length(stats(id_a).PixelIdxList);
-            w_b = length(stats(id_b).PixelIdxList);
-            merge_vol = w_a + w_b;
-            
-            if merg_vol < AbsMaxVol
-                bad_list(id_a) = 1;
-                bad_list(id_b) = 1;
-                new_list = [stats(id_a).PixelIdxList; stats(id_b).PixelIdxList];
-                new_centroid = w_a/merge_vol*stats(id_a).Centroid + w_b/merge_vol*stats(id_b).Centroid;
-                new_pixel_list = [stats(id_a).PixelList; stats(id_b).PixelList];
-                c=c+1;
-                new_stats(c).Centroid=new_centroid;
-                new_stats(c).PixelList = new_pixel_list;
-                new_stats(c).PixelIdxList = new_list;
-            end
-        end
-        
-        %Now remove bad objects, and append new ones. 
-        stats = stats(~bad_list);
-        stats = [stats; new_stats];
-        
-    end
-
-    %% Create frame_obj and save. 
-    frame_obj = struct;
+    %% Output. 
     % Image channel
     channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
-    %Add pixel list/centroid for each region to frame_obj
-    counter = 1;
-    rg_all = [];
-    %Empty BW. 
-    BW = zeros(size(BW));
-    for i = 1:length(stats)
-            if (length(stats(i).PixelIdxList) < AbsMinVol)
-                continue
-            end
-
-            %Check radius of gyration.
-            [y,x] = ind2sub(size(BW),stats(i).PixelIdxList);
-            %Calculate radius of gryation
-            pos=[x,y];
-            com=[mean(x),mean(y)];
-            
-            rg = sqrt(1/length(y).*sum(sum( (pos-com).^2,2)));
-            rg_all = [rg_all,rg];
-            
-            if(step.rg_threshold && rg > params.rg_threshold)
-                continue
-            end
-            
-            %Fill in BW. 
-            BW(stats(i).PixelIdxList) = 1;
-            frame_obj.(channel_str).PixelIdxList{counter} = stats(i).PixelIdxList;
-            frame_obj.(channel_str).centroids{counter}    = stats(i).Centroid;
-            
-            counter = counter + 1;
+    % Create frame_obj and save. 
+    frame_obj = struct(channel_str,[]);
+    
+    % add stats to frame_obj. 
+    for i = 1:length(S.stats)
+        
+        frame_obj.(channel_str).PixelIdxList{i} = S.stats(i).PixelIdxList;
+        frame_obj.(channel_str).centroids{i}    = S.stats(i).Centroid;
     end
-        %Trace boundaries. 
-        C = bwboundaries(BW);
-        if ~isempty(C)
-            C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
-            c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
-            %Match centroids. 
-            D = pdist2(cat(1,c_ctr{:}),cat(1,frame_obj.(channel_str).centroids{:}));
-            [~,idx] = min(D);
-            frame_obj.(channel_str).contours=C( idx );
-        end
-        
-        
-        
-        %Add final binarized image to frame_obj for save keeping
-        frame_obj.(channel_str).BW = BW;
+    
+    
+    %Add final binarized image to frame_obj for save keeping
+    frame_obj.(channel_str).BW = S.BW;
 
-        %% Save frame_obj as done before. 
-        fname = ['frame_',sprintf('%04d',t),'.mat'];
-        if(~exist(exp_info.nuc_seg_dir,'dir'))
-            mkdir(exp_info.nuc_seg_dir)
-        end
-        parsave([exp_info.nuc_seg_dir,fname],frame_obj)
-        if isempty(stats)
-            nFound=0;
-        else
-            nFound=length(frame_obj.(channel_str).contours);
-        end
-        disp(['Finished frame:     ',num2str(t),' Found ',num2str(nFound),' cells.'])
+    %Trace boundaries. 
+    C = bwboundaries(S.BW);
+    if ~isempty(C)
+        C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
+        c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
+        %Match centroids. 
+        D = pdist2(cat(1,c_ctr{:}),cat(1,frame_obj.(channel_str).centroids{:}));
+        [~,idx] = min(D);
+        frame_obj.(channel_str).contours=C( idx );
+    end
         
-        % Display parameters. 
-        %params
+
+    %% Save frame_obj as done before. 
+    fname = ['frame_',sprintf('%04d',t),'.mat'];
+    if(~exist(exp_info.nuc_seg_dir,'dir'))
+        mkdir(exp_info.nuc_seg_dir)
+    end
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj)
+    if isempty(S.stats)
+        nFound=0;
+    else
+        nFound=length(frame_obj.(channel_str).contours);
+    end
+    disp(['Finished frame:     ',num2str(t),' Found ',num2str(nFound),' cells.'])
+
 end
 
 

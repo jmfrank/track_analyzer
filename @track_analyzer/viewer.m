@@ -14,6 +14,8 @@ end
 
 step=default_step(step);
 
+channel_str = ['channel_',pad(num2str(step.channel),2,'left','0')];
+
 if ~isfield(step,'AutoAdjust')
     step.AutoAdjust=0;
 end
@@ -43,7 +45,7 @@ if(~isfield(step,'cells'))
     states.cells=0;
 else
     if(step.cells)
-        cells = obj.getCellContours();
+        cells=cells_callback;
         states.cells=1;
     else
         states.cells=0;
@@ -193,9 +195,17 @@ else
             clear this_img
         elseif T==1
             stack=get_stack(reader,T,step.channel);
-            Img{1}=max(stack,[],3);
+            % Check if we have specified z-planes. 
+            try
+                z_range = obj.exp_info.params.(channel_str).cells.z_range;
+            catch
+                warning('No z-range specified. Using full range.');
+                z_range = 1:size(Z,3);
+            end
+            
+            Img{1}=max(stack(:,:,z_range),[],3);
             frame2img=[1,1,1];
-            Z=1
+            Z=1;
         else
             error('no maxp available');
 
@@ -256,14 +266,13 @@ end
 %Look for existing flags. 
 try
     
-    if isfield(obj.exp_info,'flagged');
+    if isfield(obj.exp_info,'flagged')
         flagged = obj.exp_info.flagged;
-        disp('Found existing flags.')
-
-        setappdata(0,'flagged',flagged)
-
-        % Check if cells and/or tracks flagged. 
-        if ~isempty(flagged.cells)
+        if isempty(flagged)
+            disp('No flags found');
+        else
+            disp('Found existing flags.')
+            setappdata(0,'flagged',flagged)
 
             %Loop over flagged cells. 
             for i = 1:size(flagged.cells,1)
@@ -510,10 +519,11 @@ DrawSpots
 %Need to tell gui about existing groups. 
 setappdata(0,'groups',groups);
 setappdata(0,'group_sel_vec',group_sel_vec);
+setappdata(0,'step',step);
 
 %Delete existing tool box. 
 delete( findobj('Tag','TOOL_BOX') );
-TOOL = TOOL_BOX( );
+TOOL = TOOL_BOX();
 TOOL.Visible='on';
 
 %% guidata functions - created to allow external user control. 
@@ -546,8 +556,9 @@ TOOL.Visible='on';
 
 % If user decides they really want to look at cells and they weren't
 % loaded. 
-    function cells_callback()
-        cells = obj.getCellContours();
+    function cells=cells_callback()
+        params.seg_channel=step.channel;
+        cells = obj.getCellContours(params);
     end
 
 % Initialize the cell track variables. 
@@ -1177,7 +1188,7 @@ TOOL.Visible='on';
         end
             
         if ~exist('cells','var')
-            cells_callback;
+            cells=cells_callback;
         end     
         
         MAIN;
