@@ -221,6 +221,8 @@ if ~isempty( drawn_cells )
         %Load frame file.
         if exist(frame_files{f}, 'file')
             
+            
+            
             F = load(frame_files{f});
             [Y,X,Z] = size(F.frame_obj.(channel_str).BW);    
 
