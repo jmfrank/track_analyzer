@@ -22,8 +22,9 @@ if ~exist(exp_info.track_file,'file') | info.make_new
         else
              track_obj = track_obj.gen_info_bioformats();
         end
-    catch
+    catch ME
         warning('Could not perform bio-formats reading on img_file');
+        rethrow(ME)
     end
 else
     %Load object. 

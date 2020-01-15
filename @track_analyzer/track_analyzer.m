@@ -227,10 +227,10 @@ classdef track_analyzer
             if(isfield(obj.exp_info,'seg_files'))
                 seg_files = obj.exp_info.seg_files;
             else
-                f = dir([obj.exp_info.nuc_seg_dir,'/frame_*.mat']);
-                A = strvcat(f.name);
-                B = repmat(obj.exp_info.nuc_seg_dir,[size(A,1),1]);
-                seg_files = cellstr([B,A]);
+                % Generate frame_file names. 
+                for i = 1 : obj.exp_info.t_frames
+                    seg_files{i} = [obj.exp_info.nuc_seg_dir,'/frame_',sprintf('%04d',i),'.mat'];                   
+                end
             end
         end
         
@@ -288,6 +288,12 @@ classdef track_analyzer
             
             %Load frame obj. 
             seg_files = obj.get_frame_files;
+            
+            % Stop if none exist. 
+            if isempty(seg_files{1})
+                seg_files=[];
+            end
+            
             %Loop and load. 
             
             cells= cell(length(seg_files),1);

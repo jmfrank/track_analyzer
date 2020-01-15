@@ -53,6 +53,9 @@ for i = 1:length(seg_files)
     if any(bad_frames==i)
         continue
     end
+    if ~exist(seg_files{i},'file')
+        continue
+    end
     
     D = load(seg_files{i},'frame_obj');
     %Check if there are cells. 
@@ -105,8 +108,13 @@ track_counter=0;
         disp_str = ['Analyzing frame: ',num2str(i)];
         disp(disp_str)
         
+        if ~exist(seg_files{i},'file')
+            continue
+        end
+        
         %Load frame data
         data = load(seg_files{i},'frame_obj');
+        
         %Now check if there any centroids in this frame.
         if(~isfield(data.frame_obj.(channel_str),'centroids') || any(bad_frames==i) )
             %There's no new centroids. 

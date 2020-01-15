@@ -7,6 +7,9 @@ function obj = create_ds_time_series(obj, params)
 debug = 0;
 if nargin<2
     params.channel=1;
+    params.z_planes='all';
+elseif ~isfield( params, 'z_planes' )
+   params.z_planes='all'; 
 end
 
 %Figure out how many img_files. 
@@ -48,7 +51,10 @@ for i = 1:length(IMG_files)
 
         %Get the images for this z-stack according to bioformats reader
         stack = get_stack( reader, t, params.channel);
-
+        
+        % Remove planes as desired. 
+        stack = stack(:,:, params.z_planes);
+        
         %Downsample if 16 bit. 
         if(BITS==16)
             out_img(:,:,t) = uint8( max(stack,[],3) ./ 65535 .* 255 );
