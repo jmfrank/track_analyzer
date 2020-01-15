@@ -557,7 +557,7 @@ TOOL.Visible='on';
 % If user decides they really want to look at cells and they weren't
 % loaded. 
     function cells=cells_callback()
-        params.seg_channel=step.channel;
+        params.seg_channel=step.seg_channel;
         cells = obj.getCellContours(params);
     end
 
