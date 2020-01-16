@@ -164,11 +164,19 @@ disp(['Started frame: ',num2str(t)])
     % Create frame_obj and save. 
     frame_obj = struct(channel_str,[]);
     
+    
+    borders = border_frame( size(S.BW) );
+
     % add stats to frame_obj. 
     for i = 1:length(S.stats)
         
         frame_obj.(channel_str).PixelIdxList{i} = S.stats(i).PixelIdxList;
         frame_obj.(channel_str).centroids{i}    = S.stats(i).Centroid;
+        
+        this_cell = false(size(S.BW));
+        this_cell(S.stats(i).PixelIdxList) = 1;
+        frame_obj.(channel_str).touches_border(i) = any(this_cell.*borders,'all');
+
     end
     
     
