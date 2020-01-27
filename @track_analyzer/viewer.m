@@ -269,26 +269,41 @@ try
     if isfield(obj.exp_info,'flagged')
         flagged = obj.exp_info.flagged;
         if isempty(flagged)
-            disp('No flags found');
-        else
+            disp('Empty flag structure.');
+        end
+        
+        if ~isempty(flagged)
+            
             disp('Found existing flags.')
+            
             setappdata(0,'flagged',flagged)
+            
+            % EXISTING CELL FLAGS
+            if isfield(flagged,'cells')
+                
+                %Loop over flagged cells. 
+                for i = 1:size(flagged.cells,1)
+                    this_time = flagged.cells(i,1);
+                    this_cell_id = flagged.cells(i,2);
 
-            %Loop over flagged cells. 
-            for i = 1:size(flagged.cells,1)
-                this_time = flagged.cells(i,1);
-                this_cell_id = flagged.cells(i,2);
+                    % Find the track at this time. 
+                    this_track = track_matrix(:,this_time)==this_cell_id;
 
-                % Find the track at this time. 
-                this_track = track_matrix(:,this_time)==this_cell_id;
+                    % Set this cell off. 
+                    cell_sel_mat(this_track, this_time) = 0;
 
-                % Set this cell off. 
-                cell_sel_mat(this_track, this_time) = 0;
-
+                end
+            end
+            
+            % EXISTING SPOT FLAGS
+            if isfield(flagged,'spots')
+                
+               spot_sel_vec( flagged.spots ) = 0; 
+                
             end
         end
     else
-        disp('no flaggs found');
+        disp('No flaggs found');
     end
     
 catch
@@ -1104,6 +1119,9 @@ TOOL.Visible='on';
             end
         end
 
+        % update flaggs. 
+        flagged.spots=find( ~spot_sel_vec );
+        setappdata(0,'flagged',flagged);
         
     end
 
@@ -1308,4 +1326,30 @@ Img = zeros(Y,X,Z);
 end
 
 %% Key pressing. 
+
+
+%% defaults. 
+function step = default_step( step )
+
+%List of all default parameters. 
+dstep.channel=1;
+dstep.cells=0;
+dstep.tracks=0;
+dstep.spots=0;
+dstep.gaussian_filter=0;
+dstep.roi=[];
+
+S  = fieldnames( dstep );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(step,S{i})
+        step.(S{i}) = dstep.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dstep.(S{i}))]);
+    end
+end
+
+end
 

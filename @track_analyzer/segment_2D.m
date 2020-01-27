@@ -8,7 +8,7 @@
 function obj = segment_2D(obj, params, step, FORCE_FRAMES)
 
 
-params=default_params(params);
+%params=default_params(params);
 step=default_step(step);
 
 %% Pre-processing using bio-formats. 
@@ -232,5 +232,25 @@ for i = 1:length(liar_list)
     text(ctr(1),ctr(2),num2str( liar_list(i)),'color','g')
 end
 hold off
+
+end
+
+%% defaults. 
+function step = default_step( step )
+
+%List of all default parameters. 
+dstep.use_specific_img=0;
+dstep.FORCE_ALL_FRAMES=1;
+S  = fieldnames( dstep );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(step,S{i})
+        step.(S{i}) = dstep.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dstep.(S{i}))]);
+    end
+end
 
 end

@@ -105,6 +105,8 @@ classdef track_analyzer
                     
                     for c= 1:size(cells,1)
                         
+                        % check if this track is same time frame .... check
+                        % if 
                         if obj.tracks{i}(1,1) == cells(c,1) & obj.tracks{i}(1,2) == cells(c,2)
                             flagged = [flagged, i];
                         end
@@ -119,6 +121,23 @@ classdef track_analyzer
                 
                 
 
+        end
+        
+        % get flagged spots
+        function flagged = get_flagged_spots(obj)
+            if ~isfield(obj.exp_info,'flagged')
+                flagged = [];
+                return
+            end
+            
+            if isfield(obj.exp_info.flagged,'spots')
+                
+                flagged = obj.exp_info.flagged.spots;
+            else
+                flagged = [];
+            end
+            
+            
         end
         
         %quick plot of track length distribution. 
@@ -299,6 +318,11 @@ classdef track_analyzer
             cells= cell(length(seg_files),1);
             disp_str = '';
             for i=1:length(seg_files)
+                
+                if ~exist(seg_files{i},'file')
+                    continue
+                end
+                
                 load( seg_files{i},'frame_obj');
 
                 try

@@ -22,7 +22,7 @@ function varargout = TOOL_BOX(varargin)
 
 % Edit the above text to modify the response to help TOOL_BOX
 
-% Last Modified by GUIDE v2.5 13-Nov-2018 23:19:24
+% Last Modified by GUIDE v2.5 24-Jan-2020 13:12:59
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -62,7 +62,7 @@ guidata(hObject, handles);
 % UIWAIT makes TOOL_BOX wait for user response (see UIRESUME)
 % uiwait(handles.TOOL_BOX);
 %divisions = getappdata(0,'divisions');
-hObject.Position = [605.8571 15 33.1429 34.1875];
+%hObject.Position = [605.8571 15 33.1429 34.1875];
 
 
 % --- Outputs from this function are returned to the command line.
@@ -95,8 +95,11 @@ if(button_state)
     %Turn off other states that conflict. 
     states.group=0;
     states.flag_cells=0;
+    states.flag_spots=0;
     h(1) = findobj('Tag','CONNECT_BUTTON');
     h(2) = findobj('Tag','flag_cells_button');
+    h(3) = handles.flag_spots_button;
+
     set(h,'BackgroundColor', [1,1,1]);
     set(h,'Value',0);
     
@@ -130,8 +133,10 @@ if(button_state)
     %Turn off other states that conflict. 
     states.group=0;
     states.flag_tracks=0;
+    states.flag_spots=0;
     h(1) = handles.CONNECT_BUTTON;
     h(2) = handles.flag_tracks_button;
+    h(3) = handles.flag_spots_button;
     set(h,'BackgroundColor', [1,1,1]);
     set(h,'Value',0);
     
@@ -140,6 +145,44 @@ else
     
     %Set state
     states.flag_cells=0;
+end
+
+%Set data
+setappdata(0,'states',states);
+drawnow;
+
+% --- Executes on button press in flag_spots_button.
+function flag_spots_button_Callback(hObject, eventdata, handles)
+% hObject    handle to flag_spots_button (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of flag_spots_button
+button_state = get(hObject,'Value');
+states =getappdata(0,'states');
+
+%Telling what the state of the system is. 
+if(button_state)
+    %Change background
+    hObject.BackgroundColor = [0,1,0];
+    
+    %Set state on for flag
+    states.flag_spots=1;
+    %Turn off other states that conflict. 
+    states.group=0;
+    states.flag_tracks=0;
+    states.flag_cells=0;
+    h(1) = handles.CONNECT_BUTTON;
+    h(2) = handles.flag_tracks_button;
+    h(3) = handles.flag_cells_button;
+    set(h,'BackgroundColor', [1,1,1]);
+    set(h,'Value',0);
+    
+else
+    hObject.BackgroundColor = [1,1,1];
+    
+    %Set state
+    states.flag_spots=0;
 end
 
 %Set data
@@ -164,8 +207,11 @@ if(button_state)
     
     states.flag_tracks=0;
     states.flag_cells=0;
+    states.flag_spots=0;
     h(1) = handles.flag_tracks_button;
     h(2) = handles.flag_cells_button;
+    h(3) = handles.flag_spots_button;
+
     set(h,'BackgroundColor', [1,1,1]);
     set(h,'Value',0);
 else
@@ -746,3 +792,4 @@ H=findobj(0,'Tag','Main');
 g = guidata(H);
 g.reset_flags();
 drawnow;
+

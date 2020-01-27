@@ -78,7 +78,7 @@ end
 disp('New frames to calculate:')
 disp(num2str(new_ts))
 for t = new_ts
-    params = inner_function( exp_info, Z_cell{t},params,step,t, reader)
+    params = inner_function( exp_info, Z_cell{t},params,step,t, reader);
 end
 
 %Close reader at very end. 
@@ -100,42 +100,6 @@ disp(['Started frame: ',num2str(t)])
 
 %%%%%%%%%%%%%%% PARAMETERS %%%%%%%%%%%%%%%%  
         
-    %% Set Segmentation Algorithm Parameter values
-    
-        AbsMinVol = params.AbsMinVol;
-        AbsMaxVol = params.AbsMaxVol; %Maximum voxel per single nucleus
-
-        %%Derivatives Sum (DS) Algorithm
-        alpha = params.alpha;
-        beta = params.beta;
-        gamma = params.gamma;
-        epsilon =params.epsilon;
-        delta = params.delta;
-        sigmagradient=params.sigmagradient;
-
-        %%Noise filter parameters
-        %h = params.noise_filter; 
-
-        %%Perona-Malik based non-linear isotropic diffusion filter
-        diffuse_iterations=params.diffuse_iterations;
-        kappa1=params.kappa1;
-        kappa2=params.kappa2;
-        option=params.option;
-
-        %Thresholding
-        %thrshlevel = params.thrshlevel;
-        % nconn value for neighborhood calculations
-        nconn_BW = params.nconnBW;
-        %nconn_BW2= params.nconn_BW2;
-
-        MeanFilterSensitivity = params.MeanFilterSensitivity;
-        MeanFilterNeighborhood = params.MeanFilterNeighborhood;
-        
-        imclose_r = params.imclose_r;   
-        
-        %xscale         = exp_info.pixel_size(1);
-        %yscale         = exp_info.pixel_size(2);
-        %zscale         = exp_info.pixel_size(3);
 
 %%%%%%%%%%%%%%% START PROCESSING %%%%%%%%%%%%%%%%
     image_bits     = reader.getBitsPerPixel;
@@ -165,416 +129,43 @@ disp(['Started frame: ',num2str(t)])
         I = I(1:512,1:512,:);
     end
     
-    G = zeros(size(I)); 
-    Diff_im = zeros(size(I)); 
-    
-       
-    %% PRE-PROCESSING STEPS. Filters, and removing outliers. 
+    S = segmenter(I, image_bits, params, t);
+    channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
+    seg_steps = exp_info.steps.(channel_str).cells;
+    for i = 1:length(seg_steps)
 
-    %PRE-PROCESS image with mean filter if desired
-    if(step.MeanFilter)
-        
-        if image_bits==8
-            if ~strcmp(class(I),'uint8')
-                I = uint8(I);
-            end
-            tmp = adaptthresh(I,MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
-        elseif image_bits==12
-            %Re-scale to 16bit?
-            I = I./4095.*65535;
-            tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
-        elseif image_bits==16
-            tmp = adaptthresh(uint16(I),MeanFilterSensitivity,'NeighborhoodSize',MeanFilterNeighborhood);
-        end
-        
-        %%%% This step might help bring everything to 16bit levels. Try
-        %%%% manually changing bit size to 16 here. 
-        I = tmp.*65535;
-        clear tmp
+        disp(seg_steps(i).type);
+        S.(seg_steps(i).type);
+
     end
 
-    %CLAHE
-    if(step.CLAHE)
-        I_sm = zeros(size(I));
-        %Weights. 
-        lower_bound = min(plane_mean)-0.5.*min(plane_std);
-        max_bound   = max(plane_mean);
-        weights = (plane_mean-lower_bound) ./ (max_bound-lower_bound);
-        for i = 1:ZSlicesinStack
-            this_plane = I(:,:,i);
-            norm_max = max(this_plane(:));
-            norm_min = min(this_plane(:));
-            
-            norm_plane = ( this_plane - norm_min ) ./ (norm_max - norm_min );
-            tiles = round([size_y / params.tile_size, size_x / params.tile_size]);
-            I_sm(:,:,i) = adapthisteq(norm_plane,'NumTiles',tiles,'ClipLimit',params.ClipLimit).*weights(i); %,'Distribution','exponential','Alpha',0.1);
-            
-        end
-        
-        I = I_sm.*65535;
-        clear I_sm
-    end
-    
-    %Subtract a background value. 
-    if(step.subtract_bg)
-       sel = I <= params.bg;
-       I(sel) = 0;
-    end
-    
-    disp('start filtering')
-    tic
-       
-    %Median filtering and diffusion in 2D. 
-    for i  = 1:ZSlicesinStack
-        G(:,:,i) = medfilt2(I(:,:,i),params.median_filter(1:2));
-        Diff_im(:,:,i) = diffusioncode(I(:,:,i), diffuse_iterations, 0.1429, kappa1, kappa2, option);
-    end
-    
-    %Diffusion
-    %Rescale to [0,1]
-    Fim = mat2gray(Diff_im); clear Diff_im;
-    %Get gauss gradient. Using separable filters. sigmagradient now 3 component vector
-    [imx,imy]=gaussgradient2D_sep(Fim,sigmagradient); clear Fim;
-    %Total magnitude. 
-    Mag_fim = hypot(imx,imy);
-
-    %Laplacian. 
-    [L_imxx, L_imxy] = gaussgradient2D_sep(imx,sigmagradient);
-    [L_imyx, L_imyy] = gaussgradient2D_sep(imy,sigmagradient);
-   
-    if ~step.debug; clear imx imy; end
-    
-    Mag_Lim = L_imxx + L_imyy;% + L_imxy + L_imyx; % + L_imzz;
-    Mag_Lim = Mag_Lim.*(Mag_Lim>0);
-    
-    Det_hessian = L_imxx.*L_imyy - L_imxy.*L_imyx;
-    
-    if ~step.debug; clear L_imxx L_imxy L_imyx L_imyy; end
-    Det_hessian = Det_hessian.*(Det_hessian<0);
-    
-    X=gamma-((alpha*Mag_fim + beta*Mag_Lim + epsilon*abs(Det_hessian)) ./ delta);
-    if ~step.debug; clear Mag_fim Mag_Lim Det_hessian; end
-    Multi=0.5*(tanh(X)+1);% masking function
-    
-    J=(double(G).*Multi); % masked image applied on smoothened image
-    if ~step.debug; clear X Multi G; end
-    
-    %Estimate threshold by histogram. 
-    if step.threshold_by_histogram 
-        P = prctile(J(:),params.percentile);
-        thrshlevel = P;
-        BW  = J >= thrshlevel;
-    else
-        BW = J >= params.simple_threshold;
-    end
-    
-    
-    
-    if step.debug
-       imshow3D(J) 
-    end
-    
-    %Collect stats. 
-    stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
-    
-    %Remove VERY small/large volumes
-    volumes = [stats.Area]';
-    sel = volumes >= AbsMinVol/4 & volumes <= AbsMaxVol*4;
-    stats = stats(sel);
-    
-    %Rebuild BW
-    BW = zeros(size(BW));
-    idx = cat(1,stats.PixelIdxList);
-    BW(idx) = 1;
-    BW = logical(BW);
-    
-    if(step.imclose)
-        %Now use imclose to remove gaps. Operate on individual cells so
-        %that we minimize connecting cells that are close together. 
-        se= strel('disk',imclose_r,8);
-        new_BW = zeros(size(BW));
-        
-        stats = regionprops(BW,'Centroid','Area','PixelList','PixelIdxList');
-        
-        for c = 1:length(stats)
-            X = stats(c).PixelList(:,1);
-            Y = stats(c).PixelList(:,2);
-            Z = stats(c).PixelList(:,3);
-
-            x_range = [min(X):max(X)];
-            y_range = [min(Y):max(Y)];
-            z_range = [min(Z):max(Z)];
-
-            %Need to make a sub-img! 
-            sub_img = false(length(y_range),length(x_range),length(z_range));
-            %Shift og pixels to sub_img pixels. 
-            X = X - x_range(1) + 1;
-            Y = Y - y_range(1) + 1;
-            Z = Z - z_range(1) + 1;
-            %Get index. 
-            ind = sub2ind(size(sub_img),Y,X,Z);
-            sub_img(ind) = 1;
-            %Close. 
-            sub_img = imclose(sub_img,se);
-            
-            %Find closed coordinates. 
-            [Y,X,Z] = ind2sub(size(sub_img),find(sub_img));
-            %Shift back into place. 
-            X = X + x_range(1) - 1;
-            Y = Y + y_range(1) - 1;
-            Z = Z + z_range(1) - 1;
-            %New index. 
-            ind = sub2ind(size(BW),Y,X,Z);
-            %Fill in the large image. 
-            new_BW(ind) = 1;
-        end
-    else
-        new_BW = BW;
-    end
-    
-    
-    pad_size = 60;
-
-    %Now fill in some holes. 
-    for i = 1:1:ZSlicesinStack
-        %Also fill holes laterally. Vertical holes can be
-        %problematic if we just to imfill with 3D stack
-        
-        %first pad 
-        pad_plane = padarray(new_BW(:,:,i),[pad_size,pad_size],'symmetric','both');
-        pad_plane_fill = imfill(pad_plane,'holes');
-        
-        new_BW(:,:,i) = pad_plane_fill(pad_size+1:end-pad_size, pad_size+1: end-pad_size);
-    end
-    
-    %Collect stats again. 
-    stats = regionprops(logical(gather(new_BW)),'Centroid','Area','PixelList','PixelIdxList');
-    
-    %Remove small volumes
-    volumes = [stats.Area]';
-    sel = volumes >= AbsMinVol;
-    stats = stats(sel);
-    
-    %Rebuild BW
-    BW = false(size(BW));
-    BW( cat(1,stats.PixelIdxList) ) = 1;
-
-    %End timing
-    toc
-        
-    %% Looking for high intensity outliers. 
-    if(step.FilterOutliers)
-       
-        %Estimate background value. 
-        bg_img = I(~BW);
-        mean_bg_value = mean(bg_img(:));
-        
-        %Find outliers using a high threshold. 
-        high = I > params.OutlierThreshold;
-        
-        %Dilate 
-        se = strel('cuboid',params.MeanFilterNeighborhood );
-        dil = imdilate(high, se);
-        
-        %Collect region info. 
-        stats = regionprops(logical(dil),'PixelIdxList','Image');
-        
-        %Change high-intensity regions to NaN or mean bg value? 
-        all_idx = cat(1,stats.PixelIdxList);
-        I(all_idx) = mean_bg_value;
-        
-        %Fill in missing data with inpaintn
-        %I = inpaintn(I);
-        
-        %Alternatively, we can fill in with background noise?
-        if(step.debug)
-            imshow3D(I);
-            pause
-        end
-        
-        BW(all_idx) = 0;
-    end
-    
-    %% Step6: Connect similar pixels of zslices to get a 3D binary stack
-
-    %%Step7: Computes three properties for each 3D segmented object
-    Con=bwconncomp(logical(BW),nconn_BW);
-    stats = regionprops(Con,'Centroid','Area','PixelList','PixelIdxList');
-    numobj=numel(stats); %total number of segmented objects
- 
-    %New volume list
-    volumes = [stats.Area]';   
-    liar_list = find( volumes > AbsMaxVol);
-
-    %Plot liar tex
-    if(step.debug)
-        plot_liar_text( stats, liar_list );
-    end
-    
-    %% Apply 3D watershedding. Much faster doing individually for each object <8-31-18. JMF.
-    if( step.watershed)
-        disp('Starting watershed')
-        tic
-        
-        %Distance transform scales. 
-        scales = [exp_info.pixel_size(1),exp_info.pixel_size(2),exp_info.pixel_size(3)*params.z_effect];
-
-        %Counter of new objects found by watershedding
-        new_objects = 0;
-
-        %Empty fused object imglabel
-        fused_imgLabel = uint8(zeros(size(BW))); 
-
-        %Loop over liars
-        for i = 1:length(liar_list)
-
-            %This liar idx
-            idx = liar_list(i);
-
-            %Sub_img containing this liar_volume. 
-            Px = stats( idx ).PixelList;
-
-            %Pixel ranges. 
-            min_range = min(Px,[],1);
-            max_range = max(Px,[],1);
-
-            x_range = min_range(1):max_range(1);
-            y_range = min_range(2):max_range(2);
-            z_range = min_range(3):max_range(3);
-
-            %Create a sub image of BW. 
-            sub_bw = zeros(length(y_range),length(x_range),length(z_range));
-            
-            %Add in the ones from this blob. 
-            X = Px(:,1) - x_range(1) + 1;
-            Y = Px(:,2) - y_range(1) + 1;
-            Z = Px(:,3) - z_range(1) + 1;
-            ind = sub2ind(size(sub_bw),Y,X,Z);
-            sub_bw(ind) = 1;
-
-            %Distance transform (faster without using gpu when image is
-            %small. 
-            imgDist = -bwdistsc(~sub_bw,scales);
-
-            %Smoothing. Med filter is actually important here! 
-            imgDist = medfilt3(imgDist,[3,3,3]);    
-
-            %Get seeds  %%ORIGINAL params were 0.7,6. With medfilt3 = 5,5,5. 
-            mask = imextendedmin(imgDist,params.h_min_depth,params.h_min_conn); %Seems like smaller neighborhood works better?
-            imgDist = imimposemin(imgDist,mask);
-            imgDist(~sub_bw) = -inf;
-            
-            %Perform marked watershed
-            imgLabel = watershed(imgDist);
-            %Replace background again?
-            imgLabel(~sub_bw) = NaN;
-
-            %Putting objects into new compiled BW. Figure out how many
-            %objects exist after watershedding. Infer from the values of
-            %imgLabel. imglabel=0 or 1 is background or envelope. 
-
-            %Number of objects
-            num_objects = double(max(imgLabel(:))-1 ); %Subtract 1 cause 0 and 1 are nothing. 
-
-            %Ignore non-object pixels. 
-            sel = imgLabel > 1;
-            imgLabel(~sel) = 0;
-
-            %Shift values by the on going counter. 
-            imgLabel(sel) = imgLabel(sel) + new_objects;
-
-            %Now place the imgLabel into the fused BW img back where it
-            %came from. 
-            fused_imgLabel(y_range, x_range, z_range ) = fused_imgLabel(y_range, x_range, z_range ) + imgLabel;
-
-            %Adjust counter. 
-            new_objects = new_objects + num_objects;
-        end
-        
-        %Keep non liar stats
-        keep = setdiff([1:length(stats)],liar_list);
-        stats = stats(keep); 
-
-        %Collect stats on watershedded regions. 
-        stats_fused = regionprops(fused_imgLabel,'Centroid','Area','PixelList','PixelIdxList');
-        stats_fused = stats_fused(2:end); %Ignore first entry. 
-        %Append to stats. 
-        stats = [stats; stats_fused];
-        %Now we need to adjust BW... 
-        BW = zeros(size(BW));
-        %Add in new regions
-        new_idx = cat(1,stats.PixelIdxList);
-        BW(new_idx) = 1;
-        toc        
-        
-        disp('Finished watershed')
-    end
-    
-    if(step.debug)
-        figure
-       imshow3D(BW) 
-    end
-    
-    %% Error if there's no cells.
-    if(~isfield(stats,'PixelList'))
-        error('No cells found!')
-    end
-    
-    %% Mask using different channel? 
-    if step.mask
-       fname = [exp_info.nuc_seg_dir,'frame_',sprintf('%04d',t),'.mat'];
-       F = load(fname,'frame_obj');
-       mask_channel_str = ['seg_channel_',pad(num2str(params.mask_channel),2,'left','0')];
-       BW = BW.*F.frame_obj.(mask_channel_str).BW;
-       Con=bwconncomp(logical(BW),nconn_BW);
-       stats = regionprops(Con,'Centroid','Area','PixelList','PixelIdxList');
-    end
-    %% Create frame_obj and save. 
-    frame_obj = struct;
+    %% Output. 
     % Image channel
     channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
+    % Create frame_obj and save. 
+    frame_obj = struct(channel_str,[]);
     
-    %Add pixel list/centroid for each region to frame_obj
-    counter = 1;
-    rg_all=[];
-    %Empty BW. 
-    BW = false(size(BW));
-    %Boundary pixels. 
-    borders = border_frame( size(BW) );
+    
+    borders = border_frame( size(S.BW) );
 
-    for i = 1:length(stats)
-            if (length(stats(i).PixelIdxList) < AbsMinVol)
-                continue
-            end
+    % add stats to frame_obj. 
+    for i = 1:length(S.stats)
+        
+        frame_obj.(channel_str).PixelIdxList{i} = S.stats(i).PixelIdxList;
+        frame_obj.(channel_str).centroids{i}    = S.stats(i).Centroid;
+        
+        this_cell = false(size(S.BW));
+        this_cell(S.stats(i).PixelIdxList) = 1;
+        frame_obj.(channel_str).touches_border(i) = any(this_cell.*borders,'all');
 
-            %Check radius of gyration.
-            [y,x,z] = ind2sub(size(BW),stats(i).PixelIdxList);
-            %Calculate radius of gryation
-            pos=[x,y,z];
-            com=[mean(x),mean(y),mean(z)];
-            rg = sqrt(1/length(y).*sum(sum( (pos-com).^2,2)));
-            rg_all = [rg_all, rg];
-
-            if(step.rg_threshold & rg > params.rg_threshold)
-                continue
-            end
-            
-            %Fill in BW. 
-            this_cell = false(size(BW));
-            this_cell(stats(i).PixelIdxList) = 1;
-            BW(stats(i).PixelIdxList) = 1;
-            
-            %Check if cell touches boundary. 
-            frame_obj.(channel_str).touches_border(counter) = any(this_cell.*borders,'all');
-            
-            frame_obj.(channel_str).PixelIdxList{counter} = stats(i).PixelIdxList;
-            frame_obj.(channel_str).centroids{counter}    = stats(i).Centroid;
-            
-            counter = counter + 1;
     end
-    
-    %Get contours. Estimate from 3D projection. 
-    cBW = max( BW, [], 3);
+
+        %Add final binarized image to frame_obj for save keeping
+    frame_obj.(channel_str).BW = S.BW;
+
+    %Trace boundaries.
+    cBW = max(S.BW, [], 3);
     C = bwboundaries(cBW);
     if ~isempty(C)
         C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
@@ -585,10 +176,7 @@ disp(['Started frame: ',num2str(t)])
         [~,idx] = min(D);
         frame_obj.(channel_str).contours=C( idx );
     end
-
-    %Add final binarized image to frame_obj for save keeping
-    frame_obj.(channel_str).BW = BW;
-
+    
     %Save frame_obj
     fname = ['frame_',sprintf('%04d',t),'.mat'];
     

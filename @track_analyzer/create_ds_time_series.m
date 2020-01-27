@@ -32,6 +32,10 @@ for i = 1:length(IMG_files)
 
     %Generate reader. FOR NOW, assume we are looking in series 1. 
     [reader,X,Y,Z,C,T] = bfGetReader(this_file);
+    
+    if strcmp(params.z_planes,'all')
+        params.z_planes = 1:Z;
+    end
 
     series = 1;
     BITS = reader.getBitsPerPixel;
@@ -87,7 +91,8 @@ for i = 1:length(IMG_files)
 
     %Final location
     final_destination = fullfile(d,[fname,'_maxp','.tif']);
-
+    delete(final_destination);
+    
     bfsave( out_img, final_destination, 'XYTZC' );
     %Now move to final destination. 
     %movefile(out_file_name, final_destination);

@@ -1,5 +1,5 @@
 % class for performing segmentation steps. 
-classdef segmenter2D < handle  
+classdef segmenter < handle  
     
     properties (SetAccess = private)
         
@@ -25,7 +25,7 @@ classdef segmenter2D < handle
     methods (Access=public)
         
         % Constructer
-        function obj = segmenter2D( I, image_bits, params, t ) 
+        function obj = segmenter( I, image_bits, params, t ) 
             
             obj.img = I;
             obj.image_bits= image_bits;
@@ -378,7 +378,7 @@ classdef segmenter2D < handle
 
 
                     %Distance transform scales. 
-                    scales = [obj.params.px_size(1),obj.params.px_size(2), px_size(3)*obj.params.z_effect];
+                    scales = [obj.params.px_size(1),obj.params.px_size(2), obj.params.px_size(3)*obj.params.z_effect];
 
                     %Counter of new objects found by watershedding
                     new_objects = 0;

@@ -13,7 +13,6 @@
 function obj = nuc_cyto_signal_analysis(obj, params, step, force_frames)
 
 
-params = default_params(params);
 step   = default_step( step );
 
 debug = 0;
@@ -58,6 +57,10 @@ for t = frames
     sig_img = zeros(size_y,size_x,size_z);
     
     %Load the Frame_obj file associated with this image
+    if ~exist( seg_files{t})
+        continue
+    end
+    
     load(seg_files{t});
     
     %Get the bio-formats image index corresponding to this z-stack:
@@ -343,4 +346,23 @@ end
 
 
 
+%% defaults. 
+function step = default_step( step )
+
+%List of all default parameters. 
+dstep.nuc_thresh=0;
+
+S  = fieldnames( dstep );
+
+for i = 1:length(S)
+    
+    %Check if this field exists. 
+    if ~isfield(step,S{i})
+        step.(S{i}) = dstep.(S{i});
+        %Output this default was used. 
+        disp(['Using default ',S{i},' with value: ',num2str(dstep.(S{i}))]);
+    end
+end
+
+end
 

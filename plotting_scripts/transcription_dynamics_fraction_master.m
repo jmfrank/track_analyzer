@@ -80,11 +80,15 @@ for g = 1:length(groups)
             %Length of track
             len = size(track_obj.spot_tracks{j},1);
             
-            frames_present = track_obj.spot_tracks{j}(:,1);
-
             %Get fit ID's
             ids = track_obj.spot_tracks{j}(:,2);
 
+            % Remove any ids that are flagged. 
+            flagged_spots = track_obj.get_flagged_spots;
+            
+            [ids,idx] = setdiff(ids, flagged_spots);
+            frames_present = track_obj.spot_tracks{j}(idx,1);
+            
             %The spot_tracking data is stored as: 
             FITS = track_obj.results(ids);
 

@@ -11,7 +11,12 @@ obj.nuc_cyto_data = [];
 seg_files = obj.get_frame_files;
     
 %Figure out channel type (could be channel specific or old 'data' type. 
-tmp = load(seg_files{1},'frame_obj');
+for i = 1:length(seg_files)
+    if exist(seg_files{i},'file')
+        tmp=load(seg_files{i});
+        break
+    end
+end
 
 if nargin==2
     channels = params.channels;
@@ -38,9 +43,14 @@ else
     end
 end
 
-    data=struct();
+    data(length(seg_files))=struct();
     %Preload segfiles for faster access. 
     for f = 1:length(seg_files)
+        if ~exist( seg_files{f},'file')
+            data(f)=[];
+            continue
+        end
+        
         tmp = load(seg_files{f},'frame_obj'); 
         for c=1:length(channels)
             try
@@ -71,6 +81,12 @@ end
             end
             
             these_data = data(f).(channels{c});
+            
+            if isempty(these_data)
+                new_length=0;
+                continue
+            end
+            
             new_length=length(these_data);
             nuc_cyto_data.(channels{c})(count+1:count+new_length) = these_data;
         end

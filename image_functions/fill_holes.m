@@ -3,6 +3,7 @@ function BW = fill_holes(BW)
 
     if length(size(BW))==2
         BW = imfill(BW,'holes');
+        
     elseif length(size(BW))==3
 
         pad_size = 60;

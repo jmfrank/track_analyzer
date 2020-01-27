@@ -33,8 +33,11 @@ if isfield(obj.exp_info,'flagged')
     disp('Found flagged data')
     if isempty(obj.exp_info.flagged)
         flags = [];
-    else
+    elseif isfield(obj.exp_info.flagged,'cells')
+        
         flags = obj.exp_info.flagged.cells;
+    else
+        flags = [];
     end
 else
     flags = [];

@@ -24,13 +24,14 @@ function stats = merge_objects(stats, merge_dist, AbsMaxVol)
             w_b = length(stats(id_b).PixelIdxList);
             merge_vol = w_a + w_b;
             
-            if merg_vol < AbsMaxVol
+            if merge_vol < AbsMaxVol
                 bad_list(id_a) = 1;
                 bad_list(id_b) = 1;
                 new_list = [stats(id_a).PixelIdxList; stats(id_b).PixelIdxList];
                 new_centroid = w_a/merge_vol*stats(id_a).Centroid + w_b/merge_vol*stats(id_b).Centroid;
                 new_pixel_list = [stats(id_a).PixelList; stats(id_b).PixelList];
                 c=c+1;
+                new_stats(c).Area = length(new_pixel_list);
                 new_stats(c).Centroid=new_centroid;
                 new_stats(c).PixelList = new_pixel_list;
                 new_stats(c).PixelIdxList = new_list;
@@ -39,5 +40,5 @@ function stats = merge_objects(stats, merge_dist, AbsMaxVol)
         
         %Now remove bad objects, and append new ones. 
         stats = stats(~bad_list);
-        stats = [stats; new_stats];
+        stats = [stats; new_stats(:)];
 end
