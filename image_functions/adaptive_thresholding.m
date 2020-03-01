@@ -10,7 +10,7 @@ function BW = adaptive_thresholding(I, J, params)
             warning('Threshold too low');
             %Calculate the first non-zero percentile and set as
             %starting percentile. 
-            ps = prctile(J(:),[p_val:0.2:100]);
+            ps = prctile(J(:), [p_val:0.2:100]);
             nonzero = ps > 0;
             params.thresh_start = nonzero(1);
 

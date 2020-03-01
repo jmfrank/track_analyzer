@@ -22,14 +22,14 @@ stats_max = regionprops(BWmax,J,'centroid','MeanIntensity','PixelIdxList');
 BW = J >= params.thresh_start;
 %Fill holes. 
 BW = imfill(BW,'holes');
-%Close. 
+%Close. BWmax
 stats_J = regionprops(BW,'centroid','PixelIdxList','Area');
 %Filter out J blobs that are too small. 
 sel = [stats_J.Area] >= 0.8*params.AbsMinVol;
 stats_J=stats_J(sel);
 
 
-%Match the regional maxima to blobs in BW. 
+%Match the regional maxima to blobs BWmaxin BW. 
 ctr_maxima = cat(1,stats_max.Centroid);
 ctr_J      = cat(1,stats_J.Centroid);
 D = pdist2(ctr_maxima,ctr_J);

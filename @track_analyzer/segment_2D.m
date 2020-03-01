@@ -8,6 +8,11 @@
 function obj = segment_2D(obj, params, step, FORCE_FRAMES)
 
 
+% Step is optional?
+if nargin < 3
+    step = struct();
+end
+
 %params=default_params(params);
 step=default_step(step);
 
@@ -147,7 +152,7 @@ disp(['Started frame: ',num2str(t)])
     
   
     % use segmenter2D to run segmentation steps. 
-    S = segmenter2D(I, image_bits, params, t);
+    S = segmenter(I, image_bits, params, t);
     channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
     seg_steps = exp_info.steps.(channel_str).cells;
     for i = 1:length(seg_steps)

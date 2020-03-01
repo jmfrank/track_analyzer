@@ -37,19 +37,28 @@ classdef segmenter < handle
         % Image processing functions. 
         function mean_filter(obj)
             
+            % Check bit-depth. 
+            max_bits = max(obj.img(:));
+            if max_bits <= 256
+                image_bits=8;
+            elseif max_bits <= 4096
+                image_bits=12;
+            elseif max_bits <= 65536
+                image_bits=16;
+            end
             
-            if obj.image_bits==8
+            if image_bits==8
                 if ~strcmp(class(obj.img),'uint8')
                     obj.img = uint8(obj.img);
                 end
                 tmp = adaptthresh(obj.img,obj.params.MeanFilterSensitivity,'NeighborhoodSize',obj.params.MeanFilterNeighborhood);
-            elseif obj.image_bits==12
+            elseif image_bits==12
 
                 %Rescale to 16 bit? 
                 obj.img = uint16(obj.img* (2^16-1)/(2^12-1));
                 tmp = adaptthresh(obj.img,obj.params.MeanFilterSensitivity,'NeighborhoodSize',obj.params.MeanFilterNeighborhood);
 
-            elseif obj.image_bits==16
+            elseif image_bits==16
                 if ~strcmp(class(obj.img),'uint16')
                     obj.img = uint16(obj.img);
                 end
@@ -319,7 +328,7 @@ classdef segmenter < handle
 
             %New volume list
             volumes = [obj.stats.Area]';   
-            liar_list = find( volumes > obj.params.AbsMaxVol);
+            liar_list = find( volumes > obj.params.WaterShedMaxVol);
             disp('Starting watershed')
 
 
@@ -379,7 +388,7 @@ classdef segmenter < handle
 
                     %Distance transform scales. 
                     scales = [obj.params.px_size(1),obj.params.px_size(2), obj.params.px_size(3)*obj.params.z_effect];
-
+                    scales = [1,1,obj.params.z_effect];
                     %Counter of new objects found by watershedding
                     new_objects = 0;
 
@@ -459,6 +468,9 @@ classdef segmenter < handle
                     %Collect obj.stats on watershedded regions. 
                     stats_fused = regionprops(fused_imgLabel,'Centroid','Area','PixelList','PixelIdxList');
                     stats_fused = stats_fused(2:end); %Ignore first entry. 
+                    %Ignore any empty areas. 
+                    empty_list = [stats_fused.Area]==0;
+                    stats_fused = stats_fused(~empty_list);
                     %Append to obj.stats. 
                     obj.stats = [obj.stats; stats_fused];
                     %Now we need to adjust obj.BW... 

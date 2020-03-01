@@ -2,6 +2,10 @@
 
 function img_filt = log_filter_2D( img, sigma, filter_size)
 
+if length(sigma)==1
+    sigma(2) = sigma(1);
+end
+
 %If the filter_size isn't supplied, calculate it:
 if(nargin<3)
     filter_size = 2*floor(4.*sigma + 0.5) + 1;

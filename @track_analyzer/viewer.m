@@ -200,7 +200,7 @@ else
                 z_range = obj.exp_info.params.(channel_str).cells.z_range;
             catch
                 warning('No z-range specified. Using full range.');
-                z_range = 1:size(Z,3);
+                z_range = 1:Z;
             end
             
             Img{1}=max(stack(:,:,z_range),[],3);
@@ -433,6 +433,13 @@ figure(MAIN);
 %axes('position',[0,0.2,1,0.8]), 
 img_plot = subplot('Position',[0,0.2,1,0.8]);
 
+%% Deal with specified ROI. 
+if step.roi
+    update_roi( step.roi );
+else
+    shift_vec=[0,0];
+end
+
 if step.roi
     imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
     %Adjust axes.
@@ -445,24 +452,6 @@ else
     y_range = 1:Y;
 end
 
-%% Deal with specified ROI. 
-if step.roi
-    update_roi( step.roi );
-else
-    shift_vec=[0,0];
-end
-
-%% Initialize image. 
-
-if step.roi
-    imshow(squeeze(Img{1}(y_range,x_range,t)), [Rmin Rmax]);
-    %Adjust axes.
-    AX = findobj( MAIN.Children, 'Type','Axes');
-    AX.XLim(2) = length(x_range);
-    AX.YLim(2) = length(y_range);
-else
-    imshow(squeeze(Img{1}(:,:,t)), [Rmin Rmax]);
-end
 
 
 %% Make text handle array. Index of entry corresponds to track id.
@@ -625,7 +614,7 @@ TOOL.Visible='on';
         
         H=findobj(MAIN,'type','Image');
         
-        if step.roi
+        if any(step.roi)
             set(H,'cdata',squeeze(Img{img_idx}(y_range,x_range,frame_idx)));
             %Adjust axes.
             AX.XLim(2) = length(x_range);
@@ -1182,9 +1171,9 @@ TOOL.Visible='on';
                         SC=[172,156,255]/255;
                         SC=[113,191,110]./255;
 
-                        h = viscircles(pos([2,1])+shift_vec, 5, 'color', SC, 'EnhanceVisibility',0,'linewidth',4);
+                        h = viscircles(pos([2,1])+shift_vec, 10, 'color', SC, 'EnhanceVisibility',0,'linewidth',4);
                     else
-                        h = viscircles(pos([2,1])+shift_vec, 5, 'color', 'r');
+                        h = viscircles(pos([2,1])+shift_vec, 10, 'color', 'r');
                     end
                     %Setting some properties of the circle so it's
                     %clickable
@@ -1251,20 +1240,20 @@ TOOL.Visible='on';
         
         
         %If there are drawn cells, then plot ROIs. 
-        drawn_cells = getappdata(0,'drawn_cells');
-        if ~isempty( drawn_cells )
-            hold on
-            
-            %Check if any drawn_cells are for this frame. 
-            drawn_frames =  [drawn_cells.t];
-            idx = find( drawn_frames == t );
-            for c = 1:length(idx)
-                
-                pos = drawn_cells( idx(c) ).vector;
-                plot(pos(:,1),pos(:,2),'linewidth',2,'color','w')
-            end
-            hold off
-        end
+%         drawn_cells = getappdata(0,'drawn_cells');
+%         if ~isempty( drawn_cells )
+%             hold on
+%             
+%             %Check if any drawn_cells are for this frame. 
+%             drawn_frames =  [drawn_cells.t];
+%             idx = find( drawn_frames == t );
+%             for c = 1:length(idx)
+%                 
+%                 pos = drawn_cells( idx(c) ).vector;
+%                 plot(pos(:,1),pos(:,2),'linewidth',2,'color','w')
+%             end
+%             hold off
+%         end
         
         
         hold off

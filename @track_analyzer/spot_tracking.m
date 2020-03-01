@@ -4,8 +4,12 @@
 function obj = spot_tracking(obj, params, step, frames)
 
 
-% Image channel
-channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+% Image channel to segment
+channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
+% Image channel that contains cell masks. 
+cell_channel_str = ['seg_channel_',pad(num2str(params.cell_channel),2,'left','0')];
+
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
 [reader,X,Y,Z,C,T] = bfGetReader(obj.exp_info.img_file);
@@ -40,105 +44,17 @@ for t = frames
     %zero-valued pixels. 
     %img = fill_edges(img);
     
-    %% initial smoothing
-    if step.smooth_img
+    % intialize segmenter. 
+    S = spot_segmenter(img, frame_obj.(cell_channel_str), params);
+    seg_steps = obj.exp_info.steps.(channel_str).spots;
+    for i = 1:length(seg_steps)
         
-        img = imgaussfilt3(img, params.smoothing_sigma);
+        disp(seg_steps(i).type);
+        S.(seg_steps(i).type);
         
-    end
-        
-    %% Subtract local background? 
-    if step.subtract_local_background 
-        
-        % Using the nuclear masks, subtract the median/mean intensity value
-        % from each cell nuclei. This will prevent large gradients at
-        % nuclear edge. 
-        img_sub_bg = subtract_local_backgroud(img, frame_obj.(channel_str)) ;
-        %New LoG filter in 3D. Using fast implementation.
-        img_filter = -log_filter_3D(img_sub_bg, params.log_sigma);
-
-    else
-        %New LoG filter in 3D. Using fast implementation.
-        img_filter = -log_filter_3D(img, params.log_sigma);
-
     end
     
-    %Binarize image based on threshold. 
-    im_threshold = img_filter >= params.threshold;
-
-
-    %Now just multily by the cell nucleus mask
-    %Check if BW is 2D or 3D. 
-    if(numel(size(frame_obj.(channel_str).BW))==2)
-        BW = repmat(frame_obj.BW,[1,1,size(im_threshold,3)]);
-    else
-        BW = frame_obj.(channel_str).BW;
-    end
-        
-    im_threshold = im_threshold.*BW;
-        
-    %Collect stats on regions
-    stats = regionprops(logical(im_threshold), 'Centroid', 'PixelIdxList', 'Area');
-    
-    %Assignment
-    seg_dim = length(stats(1).Centroid);
-    spot_centroids = cat(1,stats.Centroid);
-    cell_centroids = cat(1,frame_obj.(channel_str).centroids{:});
-    if seg_dim == 2 && length(size(BW))==2
-        D = pdist2(spot_centroids, cell_centroids);
-    elseif seg_dim ==2 && length(size(BW)) ==3
-        cell_centroids = [cell_centroids, h/2*ones(size(cell_centroids,1),1)];
-        D = pdist2(spot_centroids, cell_centroids);
-    elseif seg_dim ==3 && length(size(BW))==3
-        D = pdist2(spot_centroids, cell_centroids);
-    end
-
-    [~,assignment] = min(D,[],2);
-
-    A = num2cell(assignment);
-    [stats.assignment] = A{:};
-    
-    % Merge duplicates (i.e. spots that are too close. 
-    if step.merge_duplicates
-    
-        stats = merge_duplicates(stats,params);
-        
-    end
-
-
-    %Check if there were any empty ROI's
-    if( length( stats )==0 )
-        continue
-    end
-    
-    % Filter out small or large regions. fit_this_frame_centroid
-    if step.sizing
-        areas = [stats.Area];
-        sel = areas >= params.sizes(1) &  areas <= params.sizes(2);
-        stats = stats(sel);
-    end
-    
-    if step.debug
-        figure(10)
-        clf
-        imshow3D(img_filter);
-        hold on
-        %Concat xy coordinates of centroids
-        centroids = cat(1,stats.Centroid);
-        centroids = centroids(:,[1,2]);
-        for i = 1:length(stats)
-            h = viscircles( centroids(i,:), 15);
-            h.Children(1).UserData = i;           
-        end
-        
-        cell_centroids = cat(1,frame_obj.(channel_str).centroids);
-        for i = 1:length(cell_centroids)
-            %text(cell_centroids{i}(1),cell_centroids{i}(2),num2str(i),'fontsize',20,'Color','w')
-        end
-        
-        colormap gray
-    end
-    
+    stats = S.stats;
     
     
     %Decide which fitting processes to perform
@@ -165,11 +81,11 @@ for t = frames
         
         case 'Arbitrary'
             
-            fit = fit_this_frame_arbitrary( img, stats, frame_obj.(channel_str).BW, params);
+            fit = fit_this_frame_arbitrary( img, stats, frame_obj.(cell_channel_str).BW, params);
     end
     
     %Append fitting results to frame_obj
-    frame_obj.(channel_str).fit = fit;
+    frame_obj.(['seg_',channel_str]).fit = fit;
     save(seg_files{t}, 'frame_obj','-append');
     
     struct2table(fit) %,'VariableNames',{'Cellid','sigmaXY','sigmaZ','Y','X','Z','Int','BG','D2P'})

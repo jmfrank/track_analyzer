@@ -66,7 +66,6 @@ for i = 1:length(IMG_files)
             out_img(:,:,t) = uint8( max(stack,[],3) ./4095 .*255 ); 
         elseif(BITS==8)
             out_img(:,:,t) = max(stack,[],3);
-
         else
             disp('unsupported bit type!');
         end 

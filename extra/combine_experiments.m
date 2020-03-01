@@ -33,7 +33,7 @@ for i = 1:length(info.exp_id)
         delT = time_series(end) - time_series(end-1) + time_series(end);
     end
     
-    file_list = [file_list; seg_files];
+    file_list = [file_list, seg_files];
     
     img_list{i} = obj.exp_info.img_file;
     maxp_list{i} = obj.exp_info.max_p_img;

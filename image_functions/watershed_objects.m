@@ -66,8 +66,8 @@ function [BW, stats] = watershed_objects(BW, nconn_BW, AbsMaxVol, h_min_depth, h
             
 
             %Distance transform scales. 
-            scales = [px_size(1),px_size(2), px_size(3)*z_effect];
-
+            %scales = [px_size(1),px_size(2), px_size(3)*z_effect];
+            scales = [1,1,z_effect];
             %Counter of new objects found by watershedding
             new_objects = 0;
 
@@ -106,7 +106,7 @@ function [BW, stats] = watershed_objects(BW, nconn_BW, AbsMaxVol, h_min_depth, h
                 imgDist = -bwdistsc(~sub_bw,scales);
 
                 %Smoothing. Med filter is actually important here! 
-                imgDist = medfilt3(imgDist,[3,3,3]);    
+                imgDist = medfilt3(imgDist,[5,5,1]);    
 
                 %Get seeds  %%ORIGINAL params were 0.7,6. With medfilt3 = 5,5,5. 
                 mask = imextendedmin(imgDist,h_min_depth,h_min_conn); %Seems like smaller neighborhood works better?

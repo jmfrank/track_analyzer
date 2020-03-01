@@ -15,6 +15,11 @@
 function obj = segment_3D(obj, params, step)
 
 
+% Step is optional?
+if nargin < 3
+    step = struct();
+end
+
 step = default_step(step);
 params = default_params(params);
 

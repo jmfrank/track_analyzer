@@ -7,6 +7,11 @@ debug = 0;
 %Get dimensions of stack
 [l,w,h] = size(img); 
 
+% if mask is 2D, expand to 3D
+if length(size(BW)) == 2
+    BW = repmat(BW,[1,1,h]);
+end
+
 % number of centroids. 
 N = length(stats);
 
@@ -22,7 +27,7 @@ fit = gen_fit_struct( N );
 bounds=params.bg_mask;
 B = strel('sphere',bounds(2));
 A = strel('sphere',bounds(1));
-
+bad_list=[];
 for i = 1:N
         
     %approximate center. 
@@ -92,6 +97,11 @@ for i = 1:N
     fit(i).sum_int  = sum(fg_int);
     fit(i).snr      = max(fg_int)/std(bg_int);
     
+    if isempty(fit(i).snr) | isinf(fit(i).snr) | isnan(fit(i).snr)
+        
+        %fit(i).sum_int = [];
+        bad_list = [bad_list, i];
+    end
     %Assign fit to cell
     fit(i).cell_id  = stats(i).assignment;
     
@@ -112,7 +122,15 @@ for i = 1:N
         plot(POS(2),POS(1),'*r')
         hold off
     end
+    
 end 
+
+
+% Remove bad fits. 
+keep = 1:length(fit);
+keep = setdiff(keep,bad_list);
+fit = fit(keep);
+
 
 end
 

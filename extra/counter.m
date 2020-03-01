@@ -1,6 +1,6 @@
 classdef counter < handle
     
-    properties (SetAccess = private )
+    properties (SetAccess = public )
         
         n
         

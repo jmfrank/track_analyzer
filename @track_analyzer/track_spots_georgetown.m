@@ -50,8 +50,12 @@ for i = 1:length(seg_files)
         %Filter out dim spots. 
         int = cat(1,these_fits.sum_int);
         snr = cat(1,these_fits.snr);
+        sizes = cat(1,these_fits.size);
         
         sel = int >= params.min_intensity & snr >= params.min_snr;
+        
+        sel = sel & sizes >= params.size_range(1) & sizes <= params.size_range(2);
+        
         pos = pos(sel,:);
         
         
@@ -83,10 +87,17 @@ else
     
 end
 
+if isempty(tracks)
+    warning('No tracks found')
+    obj.spot_tracks=[];
+    return
+end
+
 
 %Reorganize data
 ids= unique(tracks(:,end));
 spot_tracks = cell( length(ids),1);
+
 
 %New columns
 d=length(tracks(1,:));
@@ -141,6 +152,7 @@ function step = default_params( step )
 dstep.min_intensity=0;
 dstep.min_snr=0;
 dstep.fit_type='fit';
+dstep.size_range=[0,Inf];
 
 S  = fieldnames( dstep );
 

@@ -1,6 +1,16 @@
 %% Mean Filter
 function I = mean_filter(I,MeanFilterSensitivity,MeanFilterNeighborhood,image_bits)
 
+    % Check bit-depth. 
+    max_bits = max(I(:));
+    if max_bits <= 256
+        image_bits=8;
+    elseif max_bits <= 4096
+        image_bits=12;
+    elseif max_bits <= 65536
+        image_bits=16;
+    end
+
     if image_bits==8
         if ~strcmp(class(I),'uint8')
             I = uint8(I);

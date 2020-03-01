@@ -175,6 +175,11 @@ for t = frames
         y_range = [y_min:y_max];
         
         %Sub-sample image to get proper z-range. 
+        if isnan(z_planes)
+            
+            kkk=1
+        end
+        
         sub_stack = sig_img(:,:,z_planes);
         
         %Tricky part: we need to ignore pixels belonging to other nuclei! 
