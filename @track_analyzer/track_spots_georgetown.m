@@ -50,11 +50,16 @@ for i = 1:length(seg_files)
         %Filter out dim spots. 
         int = cat(1,these_fits.sum_int);
         snr = cat(1,these_fits.snr);
-        sizes = cat(1,these_fits.size);
         
         sel = int >= params.min_intensity & snr >= params.min_snr;
         
-        sel = sel & sizes >= params.size_range(1) & sizes <= params.size_range(2);
+        % Sizes could be missing.
+        if ~isfield(these_fits,'size')
+            warning('No sizes on these fits.');
+        else
+            sizes = cat(1,these_fits.size);
+            sel = sel & sizes >= params.size_range(1) & sizes <= params.size_range(2);
+        end
         
         pos = pos(sel,:);
         

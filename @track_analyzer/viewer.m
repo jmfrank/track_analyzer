@@ -33,6 +33,18 @@ else
     states.spots=step.spots;
 end
 
+% Find seg channel?
+F=obj.get_frame_files;
+fobj=load(F{1});
+%Looking for cell segmentations. 
+f=fieldnames(fobj.frame_obj);
+for i = 1:length(f)
+   this_field=fobj.frame_obj.(f{i});
+   if isfield(this_field,'centroids')
+       step.seg_channel=str2num( f{i}(end-1:end));
+   end
+end
+
 %Parse other inputs. 
 %Input parsing. 
 p = inputParser;
@@ -1322,6 +1334,7 @@ function step = default_step( step )
 
 %List of all default parameters. 
 dstep.channel=1;
+dstep.seg_channel=1;
 dstep.cells=0;
 dstep.tracks=0;
 dstep.spots=0;
