@@ -4,13 +4,28 @@
 
 function exp_info = get_exp_info(info) 
 
-%Need to figure out which computer we are using. I.e. which path to
-%dropbox. 
-[db,loc] = path_2_dropbox();
-full_file = fullfile( db, info.csv_file );
-[fid message] = fopen(strtrim(full_file));
-data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
-fclose(fid);
+% First try using info.csv as exact path. 
+if exist( info.csv_file,'file')
+    % Using abolute path. 
+    [fid message] = fopen(strtrim(info.csv_file));
+    data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
+    fclose(fid);
+    loc = 'Work';
+else
+    warning('CSV file does not exist. Searching relative to Dropbox folder...');
+    %Need to figure out which computer we are using. I.e. which path to
+    %dropbox. 
+    [db,loc] = path_2_dropbox();
+    full_file = fullfile( db, info.csv_file );
+    % Check if file exists. 
+    if ~exist( full_file,'file')
+        error('CSV does not exist');
+    end
+    [fid message] = fopen(strtrim(full_file));
+    data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
+    fclose(fid);
+end
+
 
 %If specified, use the input location
 if isfield(info,'loc')
@@ -68,7 +83,7 @@ switch data_type
 
             %Now ask user which file to select in the sub_dir
             exp_info.sub_dir
-            [sel_file,sel_path,indx] = uigetfile(fullfile(exp_info.sub_dir,'*.*'));
+            [sel_file,sel_path, indx] = uigetfile(fullfile(exp_info.sub_dir,'*.*'));
 
             %Create the img_file name
             exp_info.img_file = [sel_path,'/', sel_file];

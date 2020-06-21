@@ -1,7 +1,7 @@
 %% Master script for plotting nuc/cyto ratio over time. 
 %Can now handle nuc area trace plotting. 
 
-function [errors] = nuc_cyto_plot_master( info, groups, labels,step, params,color_vec )
+function [errors,dat_out] = nuc_cyto_plot_master( info, groups, labels,step, params,color_vec )
 
 %Get defaults. 
 step = default_step(step);
@@ -17,6 +17,8 @@ if step.plotNucArea
 else
     SP = 0;
 end
+
+dat_out = cell(length(groups));
 
 %Loop over groups
 for g = 1:length(groups)
@@ -53,7 +55,7 @@ for g = 1:length(groups)
         
         %Get background. 
         if isempty(obj.background)
-            warning('Missing background data.');
+            %warning('Missing background data.');
             background_val=0;
         else
             c_idx = find(strcmp(cellstr(strvcat(obj.background.channel)),'YAP'));
@@ -139,6 +141,9 @@ for g = 1:length(groups)
                 end
                 plot( frame_times,sig,'linewidth',2,'color',[color_vec(g,:),step.alpha]);
             end
+            
+            %Output processed data for publishing. 
+            dat_out{g}{end+1} = [frames_present, sig];
             
             %Find overlap of frames. 
             [~,idx_signal,idx_sig_mat] = intersect(frames_present,step.FrameRange);

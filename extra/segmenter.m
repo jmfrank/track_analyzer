@@ -167,7 +167,7 @@ classdef segmenter < handle
         
         function simple_thresholding(obj)
            
-            obj.BW = obj.filtered >= obj.params.simple_threshold;
+            obj.BW = obj.filtered >= obj.params.simple_threshold(obj.t);
             [obj.BW, obj.stats] = filter_objects(obj.BW,obj.params.AbsMinVol);
 
         end
