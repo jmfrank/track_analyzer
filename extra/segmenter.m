@@ -366,6 +366,9 @@ classdef segmenter < handle
 
                     %Skip first entry. 
                     stats_fused = stats_fused(2:end);
+                    %ignore empty objects? 
+                    sel = [stats_fused.Area]==0;
+                    stats_fused=stats_fused(~sel);
 
                     %Now get rid of original regions that were fused. 
                     keep = setdiff([1:length(obj.stats)],liar_list);

@@ -91,6 +91,11 @@ classdef track_analyzer
         % Get the flagged tracks. 
         function flagged = get_flagged_tracks(obj)
             
+            if ~isfield(obj.exp_info,'flagged')
+                flagged=[];
+                return
+            end
+            
             % Look for flagged tracks or cells. 
             if isfield(obj.exp_info.flagged,'tracks')
                 flagged = obj.exp_info.flagged.tracks;

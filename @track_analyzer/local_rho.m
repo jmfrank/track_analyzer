@@ -19,23 +19,26 @@ for i = 1:length(F)
     load( F{i} );
     
     %Figure out data type. Append if existing structure. 
-    if isfield(frame_obj,'channel_01')
-        data = frame_obj.channel_01;
-        out_field = 'channel_01';
+    if isfield(frame_obj,'seg_channel_01')
+        data = frame_obj.seg_channel_01;
+        out_field = 'seg_channel_01';
     else
         data = struct('local_rho',[]);
         out_field = 'data';
     end
     
     %Centroids. 
-    centroids = round( cat(1,frame_obj.centroids{:}));
+    centroids = round( cat(1,data.centroids{:}));
     %All centroids in px coordinates.
     px = sub2ind(size(BW),centroids(:,2),centroids(:,1));
     K = BW;
+    % Ignore nan?
+    
+    
     K(px) = 1;
     
     %Loop over cells. 
-    n_cells = length(frame_obj.centroids);
+    n_cells = length(data.centroids);
     for c = 1:n_cells
         
         %Start with mask for cell of interest. 
@@ -72,7 +75,7 @@ for i = 1:length(F)
         %Density. Cells per square-pixels. 
         n_cells = sum( sub_K(sub_bw) ) - 1; %Subtract self. 
         area_px = sum( sub_bw(:) );
-        data(c).local_rho =  n_cells / area_px ;
+        data.local_rho(c) =  n_cells; %/ area_px ;
     end
     
     %Append data. 
