@@ -10,7 +10,7 @@
 % Also, keeping reader open during loop over time. Might be taking a long
 % time to open and close image reader. 
 
-function obj = segment_3D(obj, FORCE_ALL_FRAMES, debug)
+function obj = segment_3D(obj)
 
 
 %% Pre-processing using bio-formats. 
@@ -22,40 +22,22 @@ series = 1; % Need to further define if multiple series in bf format.
 %Get the image size of this series. 
 T = reader.getSizeT;
 
-if nargin < 2
-    debug=0;
-    FORCE_ALL_FRAMES=1;
-end
+ %Get step.debug
+if(step.debug)
+    params
+end  
 
 %% Generate im_info structure
     ZSlicesinStack = reader.getSizeZ;
     image_bits     = reader.getBitsPerPixel;   
     
-    %Experiment info to pass along. 
-    exp_info = obj.exp_info;
-    % Determine which channel to perform cell segmentation on. 
-    chs = fieldnames(exp_info.steps);
-    CHANNEL_name=[];
-    CHANNEL_id = [];
-    for i = 1:length(chs)
-        name=chs{i};
-        if isfield(exp_info.steps.(name),'cells')
-            CHANNEL_name=name;
-            CHANNEL_id  =str2num(name(9:end));
-            break
-        end
-    end
-    if isempty(CHANNEL_name)
-        errordlg('No cell segmentation channel found')
-    end
-    
-    %Since we can do parallel processing for time points, pre-compute the list
+    %Since we do parallel processing for time points, pre-compute the list
     %of plane indices for each time point. 
     Z_cell = {};
     for t = 1:T
         planes = [];
         for Z = 1:ZSlicesinStack
-            planes(Z) = reader.getIndex(Z-1,CHANNEL_id-1,t-1)+1;
+            planes(Z) = reader.getIndex(Z-1,params.seg_channel-1,t-1)+1;
         end
         Z_cell{t} = planes;
     end
@@ -63,11 +45,12 @@ end
     
 %% Loop over images. Need to check if more than one image, do parallel. 
 
-
+%Experiment info to pass along. 
+exp_info = obj.exp_info;
 
 %Now check to see if any frames already exist. 
 frame_files = obj.get_frame_files;
-if(isempty(frame_files{1}) || FORCE_ALL_FRAMES)
+if(isempty(frame_files{1}) || step.FORCE_ALL_FRAMES)
     new_ts = [1:T];
 else
     for i = 1:length(frame_files)
@@ -88,7 +71,7 @@ end
 disp('New frames to calculate:')
 disp(num2str(new_ts))
 for t = new_ts
-   inner_function( exp_info, CHANNEL_name, Z_cell{t}, t, reader, debug);
+    params = inner_function( exp_info, Z_cell{t}, t, reader);
 end
 
 %Close reader at very end. 
@@ -101,7 +84,7 @@ obj.save; %Auto-save.
 end
 
 %% Inner function to run 
-function inner_function( exp_info, CHANNEL_name, planes, t, reader, debug)
+function params = inner_function( exp_info, planes, t, reader)
     
 %Display 
 disp(['Started frame: ',num2str(t)])
@@ -131,14 +114,19 @@ disp(['Started frame: ',num2str(t)])
     end
     
     %Reduce i for debugging
-    if(debug)
+    if(step.debug)
         I = I(1:512,1:512,:);
     end
     
-
+    % Determine which channel to perform cell segmentation on. 
+    chs = fieldnames(exp_info.steps);
+    for i = 1:length(chs)
+        name=
+    
     % Loop over steps. params from obj.exp_info. 
-    S = segmenter(I, image_bits, exp_info.params.(CHANNEL_name).cells, t);
-    seg_steps = exp_info.steps.(CHANNEL_name).cells;
+    S = segmenter(I, image_bits, exp_info.params, t);
+    channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
+    seg_steps = exp_info.steps.(channel_str).cells;
     for i = 1:length(seg_steps)
 
         disp(seg_steps(i).type);
@@ -147,25 +135,28 @@ disp(['Started frame: ',num2str(t)])
     end
 
     %% Output. 
+    % Image channel
+    channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
+
     % Create frame_obj and save. 
-    frame_obj = struct(CHANNEL_name,[]);
+    frame_obj = struct(channel_str,[]);
     
     borders = border_frame( size(S.BW) );
 
     % add stats to frame_obj. 
     for i = 1:length(S.stats)
         
-        frame_obj.(CHANNEL_name).PixelIdxList{i} = S.stats(i).PixelIdxList;
-        frame_obj.(CHANNEL_name).centroids{i}    = S.stats(i).Centroid;
+        frame_obj.(channel_str).PixelIdxList{i} = S.stats(i).PixelIdxList;
+        frame_obj.(channel_str).centroids{i}    = S.stats(i).Centroid;
         
         this_cell = false(size(S.BW));
         this_cell(S.stats(i).PixelIdxList) = 1;
-        frame_obj.(CHANNEL_name).touches_border(i) = any(this_cell.*borders,'all');
+        frame_obj.(channel_str).touches_border(i) = any(this_cell.*borders,'all');
 
     end
 
         %Add final binarized image to frame_obj for save keeping
-    frame_obj.(CHANNEL_name).BW = S.BW;
+    frame_obj.(channel_str).BW = S.BW;
 
     %Trace boundaries.
     cBW = max(S.BW, [], 3);
@@ -174,10 +165,10 @@ disp(['Started frame: ',num2str(t)])
         C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
         c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
         %Match centroids. 
-        fobj_ctrs = cat(1,frame_obj.(CHANNEL_name).centroids{:});
+        fobj_ctrs = cat(1,frame_obj.(channel_str).centroids{:});
         D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
         [~,idx] = min(D);
-        frame_obj.(CHANNEL_name).contours=C( idx );
+        frame_obj.(channel_str).contours=C( idx );
     end
     
     %Save frame_obj
@@ -187,7 +178,7 @@ disp(['Started frame: ',num2str(t)])
         mkdir(exp_info.nuc_seg_dir)
     end
         
-    parsave([exp_info.nuc_seg_dir,fname],frame_obj,CHANNEL_name)
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj,channel_str)
     if exist('disp_str','var'); clearString(disp_str); end
     disp_str = ['Finished frame:     ',num2str(t)];
     disp(disp_str)
