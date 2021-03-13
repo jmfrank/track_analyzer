@@ -12,10 +12,6 @@
 
 function obj = nuc_cyto_3D(obj, params, step, force_frames)
 
-
-params = default_params(params);
-step   = default_step( step );
-
 debug = 0;
 if(debug)
     figure(7)
@@ -25,6 +21,8 @@ if(debug)
     color_vec  = color_vec(randperm(size(color_vec,1)),:);
 end
 
+% Channel str.
+channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
 
 Z = obj.exp_info.z_planes;
@@ -59,19 +57,8 @@ for t = frames
     load(seg_files{t});
     
     %Get the bio-formats image index corresponding to this z-stack:
-    for i = 1:Z
-        this_plane = reader.getIndex(i-1,params.seg_channel-1,t-1)+1;
-        msk_img(:,:,i) = bfGetPlane(reader,this_plane);
-        
-        %Check if signal channel is same as seg_channel. 
-        if params.signal_channel==params.seg_channel
-            sig_img(:,:,i) = bfGetPlane(reader,this_plane);
-        else
-            this_plane = reader.getIndex(i-1,params.signal_channel-1,t-1)+1;
-            sig_img(:,:,i) = bfGetPlane(reader,this_plane);
-        end
-        
-    end
+    msk_img = get_stack(reader,t,params.seg_channel);
+    sig_img = get_stack(reader,t,params.sig_channel);
     
     %Clear out bad values (stitching can create 0 valued pixels at edge). 
     zSEL = sig_img == 0;
@@ -80,8 +67,8 @@ for t = frames
     msk_img(zSEL) = NaN;
    
     %Loop over detected cells
-    if isfield(frame_obj,'PixelIdxList')
-        n_cells = length(frame_obj.PixelIdxList);
+    if isfield(frame_obj.(channel_str),'PixelIdxList')
+        n_cells = length(frame_obj.(channel_str).PixelIdxList);
     else
         disp(['No cells in frame: ', num2str(t)])
         continue
@@ -95,20 +82,21 @@ for t = frames
         
         %Get a 3D mask of this cell....
         BW = zeros(size_y,size_x,size_z);
-        px = frame_obj.PixelIdxList{j};
+        px = frame_obj.(channel_str).PixelIdxList{j};
         BW(px) = 1;
+        
         %Get pixel coordinates. 
         [px_Y, px_X, px_Z] = ind2sub([size_y,size_x, size_z],px);
 
         %% Analyze the signal channel. 
         %Look at sub-region of image containing this cell. Need to exapnd
         %to include outer boundary. 
-        x_min = max(1,min(px_X)-params.out_boundary);
-        x_max = min(size_x,max(px_X)+params.out_boundary);
-        y_min = max(1,min(px_Y)-params.out_boundary);
-        y_max = min(size_y,max(px_Y)+params.out_boundary);
-        z_min = max(1,min(px_Z)-params.out_boundary);
-        z_max = min(size_z,max(px_Z)+params.out_boundary);
+        x_min = max(1,min(px_X)-params.out_boundary(1));
+        x_max = min(size_x,max(px_X)+params.out_boundary(1));
+        y_min = max(1,min(px_Y)-params.out_boundary(2));
+        y_max = min(size_y,max(px_Y)+params.out_boundary(2));
+        z_min = max(1,min(px_Z)-params.out_boundary(3));
+        z_max = min(size_z,max(px_Z)+params.out_boundary(3));
         
         %New [x,y] range. 
         x_range = [x_min:x_max];
@@ -119,21 +107,20 @@ for t = frames
         roi_bw_nuc = logical(BW);
         sub_mask = roi_bw_nuc(y_range,x_range, z_range);
         
-        
-        %Sub-sample image to get proper z-range. 
-        sub_stack = sig_img;
+        % Temporary store a copy of the signal image for masking. 
+        this_img = sig_img;
         
         %Tricky part: we need to ignore pixels belonging to other nuclei! 
             %All PixelIdx NOT belonging to cell j. 
             sel = [1:n_cells] ~= j;
-            ind = cat(1,frame_obj.PixelIdxList{sel});
+            ind = cat(1,frame_obj.(channel_str).PixelIdxList{sel});
             not_this_cell = false(size_y,size_x,size_z);
             not_this_cell(ind) = 1;
             %Using not_this_cell as mask, replace all pixels with NaN. 
-            sub_stack( not_this_cell ) = NaN;
+            this_img( not_this_cell ) = NaN;
             
         %Now get sub_img using sub_stack. Still a img volume though...
-        sub_img = double(sub_stack(y_range, x_range, z_range));
+        sub_img = double(this_img(y_range, x_range, z_range));
         
         %Use intensity of nuclear region to minimize nucleolar regions.
         if step.nuc_thresh
@@ -157,11 +144,11 @@ for t = frames
                 
         %Collect data. 
         data(j) = analyze_roi(sub_img, sub_mask, int_mask, j, params );
-        
+        %kkk=1
     end
     
     %Now save the frame_obj. Saving to a channel specific field.
-    frame_obj.(['channel_',pad(num2str(params.signal_channel),2,'left','0')]) = data;
+    frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]) = data;
     save(seg_files{t},'frame_obj','-append')
 
     if(debug);pause;if(i < length(obj.img_files));clf(7);end;end
@@ -221,7 +208,7 @@ end
     else
         mask_inner = clean_mask;
     end
-    se = strel('sphere',params.out_boundary);
+    se = strel('sphere',params.out_boundary(1));
     mask_outer = imdilate(mask_inner,se);
 
     roi_outer = logical( mask_outer - mask_inner);

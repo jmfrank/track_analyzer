@@ -18,6 +18,8 @@ classdef segmenter < handle
         image_bits
         
         t % frame.
+        
+        mask
     end
     
     
@@ -25,12 +27,13 @@ classdef segmenter < handle
     methods (Access=public)
         
         % Constructer
-        function obj = segmenter( I, image_bits, params, t ) 
+        function obj = segmenter( I, image_bits, params, t, mask ) 
             
             obj.img = I;
             obj.image_bits= image_bits;
             obj.params=params;
             obj.t=t;
+            obj.mask = mask;
         end
         
         
@@ -168,6 +171,8 @@ classdef segmenter < handle
         function simple_thresholding(obj)
            
             obj.BW = obj.filtered >= obj.params.simple_threshold(obj.t);
+            % Mask. 
+            obj.BW = obj.BW.*obj.mask;
             [obj.BW, obj.stats] = filter_objects(obj.BW,obj.params.AbsMinVol);
 
         end
@@ -175,8 +180,9 @@ classdef segmenter < handle
         function hist_thresholding(obj)
            
             P = prctile(obj.filtered(:),obj.params.percentile(obj.t));
-            
             obj.BW = obj.filtered >= P;
+            % Mask. 
+            obj.BW = obj.BW.*obj.mask;
             [obj.BW, obj.stats] = filter_objects(obj.BW,obj.params.AbsMinVol);
 
         end
@@ -203,6 +209,8 @@ classdef segmenter < handle
             I_sm = imgaussfilt(obj.img,obj.params.I_sm_sigma);
             %Perform iterative thresholding. 
             obj.BW = iterative_thresholding(I_sm, obj.filtered, obj.params );
+            % Mask. 
+            obj.BW = obj.BW.*obj.mask;
             [obj.BW, obj.stats] = filter_objects(obj.BW,obj.params.AbsMinVol);
 
         end
@@ -430,7 +438,7 @@ classdef segmenter < handle
                         imgDist = -bwdistsc(~sub_bw,scales);
 
                         %Smoothing. Med filter is actually important here! 
-                        imgDist = medfilt3(imgDist,[3,3,3]);    
+                        imgDist = medfilt3(imgDist,[5,5,1]);    
 
                         %Get seeds  %%ORIGINAL params were 0.7,6. With medfilt3 = 5,5,5. 
                         mask = imextendedmin(imgDist,obj.params.h_min_depth,obj.params.h_min_conn); %Seems like smaller neighborhood works better?

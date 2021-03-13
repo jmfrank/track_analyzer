@@ -22,7 +22,7 @@ series = 1; % Need to further define if multiple series in bf format.
 %Get the image size of this series. 
 T = reader.getSizeT;
 
-if nargin < 2
+if nargin < 3
     debug=0;
     FORCE_ALL_FRAMES=1;
 end
@@ -67,7 +67,8 @@ end
 
 %Now check to see if any frames already exist. 
 frame_files = obj.get_frame_files;
-if(isempty(frame_files{1}) || FORCE_ALL_FRAMES)
+
+if( ~exist(frame_files{1},'file') || FORCE_ALL_FRAMES)
     new_ts = [1:T];
 else
     for i = 1:length(frame_files)
@@ -104,68 +105,74 @@ end
 function inner_function( exp_info, CHANNEL_name, planes, t, reader, debug)
     
 %Display 
-disp(['Started frame: ',num2str(t)])
-
-%%%%%%%%%%%%%%% PARAMETERS %%%%%%%%%%%%%%%%  
-        
+disp(['Started frame: ',num2str(t)]);      
 
 %%%%%%%%%%%%%%% START PROCESSING %%%%%%%%%%%%%%%%
     image_bits     = reader.getBitsPerPixel;
     size_x         = reader.getSizeX;
     size_y         = reader.getSizeY;
-    ZSlicesinStack = length(planes);
-
-    %Get image planes for this time point. 
-    I = zeros(size_y,size_x,ZSlicesinStack);
-
+    ZSlicesinStack = reader.getSizeZ;
+    CHANNEL_id     = str2num(CHANNEL_name(9:end));
+    
     %Get the bio-formats image index corresponding to this z-stack:
-    for i = 1:ZSlicesinStack
-        this_plane_img = bfGetPlane(reader,planes(i));
-        %If there are zeros in this plane due to weird stitching, then
-        %adjust. 
-        sel = this_plane_img == 0;
-        if(sum(sel(:))>0)
-            this_plane_img(sel) = mean( this_plane_img(~sel) );
-        end       
-        I(:,:,i)     = this_plane_img;
-    end
+    I = get_stack(reader, t, CHANNEL_id);
+    
+    % FORGOT What this is for? Not included in app. 
+%     for i = 1:ZSlicesinStack
+%         this_plane_img=I(:,:,i);
+%         sel = this_plane_img == 0;
+%         if(sum(sel(:))>0)
+%             this_plane_img(sel) = mean( this_plane_img(~sel) );
+%         end       
+%         I(:,:,i)     = this_plane_img;
+%     end
     
     %Reduce i for debugging
     if(debug)
         I = I(1:512,1:512,:);
     end
     
-
+%     % Mask image
+    if exp_info.steps.mask_channel>0
+        % Get Mask image. 
+        F = obj.get_frame_files;
+        load(F{1})
+        msk_channel_str = ['seg_channel_',pad(num2str(exp_info.steps.mask_channel),2,'left','0')];
+        mask = frame_obj.(msk_channel_str).BW;
+    else
+        mask = ones(size(I));
+    end
+    
     % Loop over steps. params from obj.exp_info. 
-    S = segmenter(I, image_bits, exp_info.params.(CHANNEL_name).cells, t);
+    S = segmenter(I, image_bits, exp_info.params.(CHANNEL_name).cells, t, mask);
     seg_steps = exp_info.steps.(CHANNEL_name).cells;
     for i = 1:length(seg_steps)
 
         disp(seg_steps(i).type);
         S.(seg_steps(i).type);
-
     end
 
     %% Output. 
     % Create frame_obj and save. 
-    frame_obj = struct(CHANNEL_name,[]);
+    seg_channel_name=strcat('seg_',CHANNEL_name);
+    frame_obj = struct(seg_channel_name,[]);
     
     borders = border_frame( size(S.BW) );
 
     % add stats to frame_obj. 
     for i = 1:length(S.stats)
         
-        frame_obj.(CHANNEL_name).PixelIdxList{i} = S.stats(i).PixelIdxList;
-        frame_obj.(CHANNEL_name).centroids{i}    = S.stats(i).Centroid;
+        frame_obj.(seg_channel_name).PixelIdxList{i} = S.stats(i).PixelIdxList;
+        frame_obj.(seg_channel_name).centroids{i}    = S.stats(i).Centroid;
         
         this_cell = false(size(S.BW));
         this_cell(S.stats(i).PixelIdxList) = 1;
-        frame_obj.(CHANNEL_name).touches_border(i) = any(this_cell.*borders,'all');
+        frame_obj.(seg_channel_name).touches_border(i) = any(this_cell.*borders,'all');
 
     end
 
         %Add final binarized image to frame_obj for save keeping
-    frame_obj.(CHANNEL_name).BW = S.BW;
+    frame_obj.(seg_channel_name).BW = S.BW;
 
     %Trace boundaries.
     cBW = max(S.BW, [], 3);
@@ -174,10 +181,10 @@ disp(['Started frame: ',num2str(t)])
         C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
         c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
         %Match centroids. 
-        fobj_ctrs = cat(1,frame_obj.(CHANNEL_name).centroids{:});
+        fobj_ctrs = cat(1,frame_obj.(seg_channel_name).centroids{:});
         D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
         [~,idx] = min(D);
-        frame_obj.(CHANNEL_name).contours=C( idx );
+        frame_obj.(seg_channel_name).contours=C( idx );
     end
     
     %Save frame_obj
@@ -187,7 +194,7 @@ disp(['Started frame: ',num2str(t)])
         mkdir(exp_info.nuc_seg_dir)
     end
         
-    parsave([exp_info.nuc_seg_dir,fname],frame_obj,CHANNEL_name)
+    parsave([exp_info.nuc_seg_dir,fname],frame_obj,seg_channel_name)
     if exist('disp_str','var'); clearString(disp_str); end
     disp_str = ['Finished frame:     ',num2str(t)];
     disp(disp_str)
