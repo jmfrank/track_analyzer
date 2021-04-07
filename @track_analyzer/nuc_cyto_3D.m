@@ -78,7 +78,11 @@ for t = frames
     data = gen_data_struct( n_cells );
         
     %Loop over cells. 
+    f = waitbar(0, 'Starting');
     for j = 1:n_cells
+        % wwait bar. 
+        waitbar(j/n_cells, f, sprintf('Progress: %d %%', floor(j/n_cells*100)));
+        pause(0.1);
         
         %Get a 3D mask of this cell....
         BW = zeros(size_y,size_x,size_z);
@@ -146,6 +150,7 @@ for t = frames
         data(j) = analyze_roi(sub_img, sub_mask, int_mask, j, params );
         %kkk=1
     end
+    close(f);
     
     %Now save the frame_obj. Saving to a channel specific field.
     frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]) = data;
