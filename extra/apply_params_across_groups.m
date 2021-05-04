@@ -19,7 +19,7 @@ for i = 1:length(groups)
     for j = 1:length(groups{i})
         
         info.exp_id=groups{i}(j);
-        this_obj=get_exp(info)
+        this_obj=get_exp(info);
         
         this_obj.exp_info.params=params;
         this_obj.exp_info.steps =steps;

@@ -3,10 +3,6 @@ classdef segmenter < handle
     
     properties (SetAccess = private)
         
-        params
-        
-        step
-        
         BW
         
         img
@@ -20,6 +16,20 @@ classdef segmenter < handle
         t % frame.
         
         mask
+        
+        blobs
+        
+        steps %< internal tracking of all steps called?
+    end
+    
+    properties (SetAccess = public)
+       
+        %changeable parameters. 
+        params 
+        
+        msk_pxs
+        
+        
     end
     
     
@@ -27,15 +37,21 @@ classdef segmenter < handle
     methods (Access=public)
         
         % Constructer
-        function obj = segmenter( I, image_bits, params, t, mask ) 
+        function obj = segmenter( I, image_bits, params, t, msk_pxs ) 
             
             obj.img = I;
             obj.image_bits= image_bits;
             obj.params=params;
             obj.t=t;
-            obj.mask = mask;
+            
+            if nargin == 5
+                obj.msk_pxs = msk_pxs;
+                % rebuild mask. 
+                obj.mask = false(size(obj.img));
+                obj.mask( cat(1,msk_pxs{:}) ) = 1;
+            end
+                        
         end
-        
         
         % Image processing functions. 
         function mean_filter(obj)
@@ -442,7 +458,7 @@ classdef segmenter < handle
 
                         %Get seeds  %%ORIGINAL params were 0.7,6. With medfilt3 = 5,5,5. 
                         mask = imextendedmin(imgDist,obj.params.h_min_depth,obj.params.h_min_conn); %Seems like smaller neighborhood works better?
-                        imgDist = imimposemin(imgDist,mask);
+                        imgDist = imimposemin(imgDist, mask);
                         imgDist(~sub_bw) = -inf;
 
                         %Perform marked watershed
@@ -571,6 +587,95 @@ classdef segmenter < handle
             
             % Re-make BW. 
             obj.rebuild_BW;
+        end
+        
+        
+        % Apply the object mask to the filtered img. 
+        function apply_mask(obj)
+            obj.filtered = obj.filtered.*obj.mask;
+        end
+        
+        % Local segmentation within masked objects. 
+        function sub_region_segmentation(obj)
+           
+            obj.blobs = struct('cell_id',[],'Area',[],'PixelIdxList',[],'MeanIntensity',[],'mean_bg',[], ...
+                        'snr',[], 'sum_int',[],'Centroid',[]);
+                 
+            %counter. 
+            c=0;
+            
+            % Erosion strel
+            SE = strel('disk',1);
+            
+            
+            % Now perform a local segmentation per blob. Define S/N threshold. 1.2? 
+            n_cells = length(obj.msk_pxs);
+            for i = 1:n_cells
+                
+                % First make a mask, and erode as specified. 
+                [sub_mask, ~, ranges] = px_list_2_mask( obj.msk_pxs{i}, size(obj.img));
+                sub_mask = imerode(sub_mask, SE);
+                sub_img = obj.img(ranges.y,ranges.x);
+                
+                %the pixels. 
+                vals= sub_img(sub_mask);
+
+                % Clip prctile range
+                int_range = prctile(vals,[obj.params.clip_prctile(1),obj.params.clip_prctile(2)]);
+                vals_sel = vals( vals >= int_range(1) & vals <= int_range(2));
+
+                % Calculate mean, std.     
+                int_mean = mean(vals_sel);
+                int_std  = std(vals_sel);
+
+                % Mask out non-cell pixesl. 
+                sub_img = sub_img.*sub_mask;
+
+                % Threshold.
+                thresh_val = int_std*obj.params.snr_ratio + int_mean;
+                bw = logical(sub_img >= thresh_val);
+
+                % Now generate regionprops for this nuclei. 
+                sub_props = regionprops(bw, sub_img,'PixelIdxList','MeanIntensity','Area','Centroid');
+                
+                %loop over all sub-regions, add to blob list. Convert
+                %pixelidxlist to large image. 
+                for j = 1:length(sub_props)
+                    c=c+1;
+                    % cell id. 
+                    sub_props(j).cell_id=i;
+                    
+                    % add background intensity. 
+                    sub_props(j).mean_bg = int_mean;
+                    
+                    % Calculate sum_intensity above background and SNR. 
+                    sum_int = sum( sub_img( sub_props(j).PixelIdxList ) - int_mean );
+                    snr = (mean( sub_img( sub_props(j).PixelIdxList ) ) - int_mean )/ int_std;
+                    sub_props(j).sum_int = sum_int;
+                    sub_props(j).snr     = snr;
+                    
+                    % Now convert index to large image. 
+                    sub_props(j).PixelIdxList = sub_2_large_ind( sub_props(j).PixelIdxList, ranges, size(sub_img), size(obj.img));
+                    
+                    % convert centroid to large image units. 
+                    ctr = sub_props(j).Centroid;
+                    ctr(1) = ctr(1) + ranges.x(1) -1;
+                    ctr(2) = ctr(2) + ranges.y(1) -1;
+                    if length(ctr) == 3
+                        ctr(3) = ctr(3) + ranges.z(1) -1;
+                    end
+                    sub_props(j).Centroid = ctr;
+                    % now append to main structure. 
+                    obj.blobs(c)=sub_props(j);
+                end
+                
+            end
+            
+            % rebuild BW from blobs. 
+            obj.BW = false(size(obj.img));
+            idx    = cat(1,obj.blobs.PixelIdxList);
+            obj.BW(idx)=1;
+            
         end
     end
     

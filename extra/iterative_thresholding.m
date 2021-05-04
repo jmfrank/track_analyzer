@@ -73,6 +73,9 @@ BW=false(size(BW));
 params.dilator_size=5;
 dilator = strel('square',params.dilator_size);
 
+%%% Note: somehow this happened to work for 3D input image. Even though
+%%% the syntax looks like 2D (i.e. only specifying Y,X range). Could be an
+%%% issue with more modifications. 
 for i = 1:length(matched_blobs)
     %Get J values. 
     px = stats_J( matched_blobs(i) ).PixelIdxList;

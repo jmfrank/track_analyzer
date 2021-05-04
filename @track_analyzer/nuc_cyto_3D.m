@@ -1,4 +1,4 @@
-% Calculate mean yap signal (could be arbitrary signal based on image).
+ % Calculate mean yap signal (could be arbitrary signal based on image).
 % Uses the roi2poly tool. Maybe faster?
 %Now computes cyto to nuclear ratio by taking a mean of a thin ring outside
 %of the contour
@@ -162,9 +162,7 @@ end
 
 if(debug);hold off;end
 
-%obj.nuc_cyto_calc = true;
 
-%Now 
 end
 
 %% Analyze NC. 
