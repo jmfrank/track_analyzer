@@ -28,9 +28,7 @@ if nargin < 3
 end
 
 %% Generate im_info structure
-    ZSlicesinStack = reader.getSizeZ;
-    image_bits     = reader.getBitsPerPixel;   
-    
+
     %Experiment info to pass along. 
     exp_info = obj.exp_info;
     % Determine which channel to perform cell segmentation on. 
@@ -48,17 +46,7 @@ end
     if isempty(CHANNEL_name)
         errordlg('No cell segmentation channel found')
     end
-    
-    %Since we can do parallel processing for time points, pre-compute the list
-    %of plane indices for each time point. 
-    Z_cell = {};
-    for t = 1:T
-        planes = [];
-        for Z = 1:ZSlicesinStack
-            planes(Z) = reader.getIndex(Z-1,CHANNEL_id-1,t-1)+1;
-        end
-        Z_cell{t} = planes;
-    end
+   
         
     
 %% Loop over images. Need to check if more than one image, do parallel. 
@@ -89,7 +77,7 @@ end
 disp('New frames to calculate:')
 disp(num2str(new_ts))
 for t = new_ts
-   inner_function( exp_info, CHANNEL_name, Z_cell{t}, t, reader, debug);
+   inner_function( exp_info, CHANNEL_name, t, reader, debug);
 end
 
 %Close reader at very end. 
@@ -102,37 +90,29 @@ obj.save; %Auto-save.
 end
 
 %% Inner function to run 
-function inner_function( exp_info, CHANNEL_name, planes, t, reader, debug)
+function inner_function( exp_info, CHANNEL_name, t, reader, debug)
     
 %Display 
 disp(['Started frame: ',num2str(t)]);      
 
 %%%%%%%%%%%%%%% START PROCESSING %%%%%%%%%%%%%%%%
     image_bits     = reader.getBitsPerPixel;
-    size_x         = reader.getSizeX;
-    size_y         = reader.getSizeY;
-    ZSlicesinStack = reader.getSizeZ;
     CHANNEL_id     = str2num(CHANNEL_name(9:end));
     
     %Get the bio-formats image index corresponding to this z-stack:
     I = get_stack(reader, t, CHANNEL_id);
     
-    % FORGOT What this is for? Not included in app. 
-%     for i = 1:ZSlicesinStack
-%         this_plane_img=I(:,:,i);
-%         sel = this_plane_img == 0;
-%         if(sum(sel(:))>0)
-%             this_plane_img(sel) = mean( this_plane_img(~sel) );
-%         end       
-%         I(:,:,i)     = this_plane_img;
-%     end
-    
     %Reduce i for debugging
     if(debug)
         I = I(1:512,1:512,:);
     end
+
+    % Check seg_dims. Max project if 2D. 
+    if exp_info.params.(CHANNEL_name).cells.seg_dims == 2
+        I = max(I,[],3);
+    end
     
-%     % Mask image
+    % Mask image
     if exp_info.steps.mask_channel>0
         % Get Mask image. 
         F = obj.get_frame_files;
@@ -160,18 +140,16 @@ disp(['Started frame: ',num2str(t)]);
     borders = border_frame( size(S.BW) );
 
     % add stats to frame_obj. 
-    for i = 1:length(S.stats)
-        
+    for i = 1:length(S.stats)       
         frame_obj.(seg_channel_name).PixelIdxList{i} = S.stats(i).PixelIdxList;
         frame_obj.(seg_channel_name).centroids{i}    = S.stats(i).Centroid;
         
         this_cell = false(size(S.BW));
         this_cell(S.stats(i).PixelIdxList) = 1;
         frame_obj.(seg_channel_name).touches_border(i) = any(this_cell.*borders,'all');
-
     end
 
-        %Add final binarized image to frame_obj for save keeping
+    %Add final binarized image to frame_obj for save keeping
     frame_obj.(seg_channel_name).BW = S.BW;
 
     %Trace boundaries.

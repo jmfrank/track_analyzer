@@ -47,7 +47,7 @@ switch length(img_size)
         if isvector(p)
 
             [pY,pX,pZ] = ind2sub(img_size, p);
-            p = [X,Y,Z];
+            p = [pX,pY,pZ];
 
         end
 

@@ -188,7 +188,7 @@ classdef segmenter < handle
            
             obj.BW = obj.filtered >= obj.params.simple_threshold(obj.t);
             % Mask. 
-            obj.BW = obj.BW.*obj.mask;
+            %obj.BW = obj.BW.*obj.mask;
             [obj.BW, obj.stats] = filter_objects(obj.BW,obj.params.AbsMinVol);
 
         end
@@ -198,7 +198,7 @@ classdef segmenter < handle
             P = prctile(obj.filtered(:),obj.params.percentile(obj.t));
             obj.BW = obj.filtered >= P;
             % Mask. 
-            obj.BW = obj.BW.*obj.mask;
+            %obj.BW = obj.BW.*obj.mask;
             [obj.BW, obj.stats] = filter_objects(obj.BW,obj.params.AbsMinVol);
 
         end
@@ -353,9 +353,6 @@ classdef segmenter < handle
             %New volume list
             volumes = [obj.stats.Area]';   
             liar_list = find( volumes > obj.params.WaterShedMaxVol);
-            disp('Starting watershed')
-
-
             img_dim= length(size(obj.BW));
 
             switch img_dim
@@ -407,8 +404,6 @@ classdef segmenter < handle
                     %Add in new regions
                     new_idx = cat(1,obj.stats.PixelIdxList);
                     obj.BW(new_idx) = 1;
-
-                    disp('Finished watershed')
 
                 case 3
 
@@ -505,8 +500,6 @@ classdef segmenter < handle
                     %Add in new regions
                     new_idx = cat(1,obj.stats.PixelIdxList);
                     obj.BW(new_idx) = 1;
-
-                    disp('Finished watershed')
 
             end            
         end
@@ -610,12 +603,19 @@ classdef segmenter < handle
             
             % Now perform a local segmentation per blob. Define S/N threshold. 1.2? 
             n_cells = length(obj.msk_pxs);
+            img_dims = length( size(obj.img) );
             for i = 1:n_cells
                 
                 % First make a mask, and erode as specified. 
                 [sub_mask, ~, ranges] = px_list_2_mask( obj.msk_pxs{i}, size(obj.img));
                 sub_mask = imerode(sub_mask, SE);
-                sub_img = obj.img(ranges.y,ranges.x);
+                
+                switch img_dims
+                    case 2                      
+                        sub_img = obj.img(ranges.y,ranges.x);
+                    case 3
+                        sub_img = obj.img(ranges.y,ranges.x,ranges.z);
+                end
                 
                 %the pixels. 
                 vals= sub_img(sub_mask);
@@ -637,6 +637,11 @@ classdef segmenter < handle
 
                 % Now generate regionprops for this nuclei. 
                 sub_props = regionprops(bw, sub_img,'PixelIdxList','MeanIntensity','Area','Centroid');
+                
+                % Filter sizes. 
+                areas = [sub_props.Area];
+                sel_area = areas >= obj.params.foci_size_filter(1) & areas <= obj.params.foci_size_filter(2);
+                sub_props = sub_props(sel_area);
                 
                 %loop over all sub-regions, add to blob list. Convert
                 %pixelidxlist to large image. 
@@ -661,7 +666,7 @@ classdef segmenter < handle
                     ctr = sub_props(j).Centroid;
                     ctr(1) = ctr(1) + ranges.x(1) -1;
                     ctr(2) = ctr(2) + ranges.y(1) -1;
-                    if length(ctr) == 3
+                    if img_dims == 3
                         ctr(3) = ctr(3) + ranges.z(1) -1;
                     end
                     sub_props(j).Centroid = ctr;

@@ -5,7 +5,7 @@
 % max-int project first. 
 
 % 10-26-18: now takes vector of threshold values for each time frame.
-function obj = segment_2D(obj, params, step, FORCE_FRAMES)
+function obj = segment_2D(obj, FORCE_ALL_FRAMES, debug)
 
 
 % Step is optional?
@@ -17,48 +17,28 @@ end
 step=default_step(step);
 
 %% Pre-processing using bio-formats. 
+reader = bfGetReader(obj.exp_info.img_file);
 
-%Generate reader. Use memoizer. Oif files can be really slow. Since segmentation is
-%the first part of processing, there should be memo for all subsequent
-%steps. 
-bfInitLogging;
-
-if step.use_specific_img    
-    loci.common.DebugTools.setRootLevel('WARN');
-    reader = bfGetReader();
-    reader = loci.formats.Memoizer(reader,0);
-    reader.setId( params.img_file );
-    series = 1;    
-else
-    loci.common.DebugTools.setRootLevel('WARN');
-    reader = bfGetReader();
-    reader = loci.formats.Memoizer(reader,0);
-    reader.setId( obj.exp_info.img_file );
-    series = 1;
-end
-
-
-
-
-%Get the image size of this series. 
-
-T = reader.getSizeT;
 
 %% Generate im_info structure
-    ZSlicesinStack = reader.getSizeZ;
-    image_bits     = reader.getBitsPerPixel;   
-    
-    %Since we do parallel processing for time points, pre-compute the list
-    %of plane indices for each time point. 
-    Z_cell = {};
-    for t = 1:T
-        planes = [];
-        for Z = 1:ZSlicesinStack
-            planes(Z) = reader.getIndex(Z-1,params.seg_channel-1,t-1)+1;
+
+    %Experiment info to pass along. 
+    exp_info = obj.exp_info;
+    % Determine which channel to perform cell segmentation on. 
+    chs = fieldnames(exp_info.steps);
+    CHANNEL_name=[];
+    CHANNEL_id = [];
+    for i = 1:length(chs)
+        name=chs{i};
+        if isfield(exp_info.steps.(name),'cells')
+            CHANNEL_name=name;
+            CHANNEL_id  =str2num(name(9:end));
+            break
         end
-        Z_cell{t} = planes;
     end
-    
+    if isempty(CHANNEL_name)
+        errordlg('No cell segmentation channel found')
+    end
     
 %% Loop over images. Need to check if more than one image, do parallel. 
 if(T>1)
@@ -92,21 +72,13 @@ if nargin==4
     end
 end
 
-%Now run loops 
-    if(parallel)
-        disp('New frames to calculate:')
-        disp(new_ts)
-        parfor g = 1:length(new_ts)
-            t = new_ts(g);
-            inner_function( exp_info, Z_cell{t}, params, t, reader)
-        end
-    else
-        disp('New frames to calculate:')
-        disp(num2str(new_ts))
-        for t = new_ts
-            inner_function( exp_info, Z_cell{t},params,t,reader)
-        end
-    end
+%Now run loops. Params is passed around in case things change from user. 
+disp('New frames to calculate:')
+disp(num2str(new_ts))
+for t = new_ts
+   inner_function( exp_info, CHANNEL_name, t, reader, debug);
+end
+
 disp(['Max frames: ',num2str(T)]);
 
 %Add params to exp_info.
@@ -120,7 +92,7 @@ obj.save;
 end
 
 %% Inner function to run 
-function inner_function( exp_info, planes, params, t,reader)
+function inner_function( exp_info, CHANNEL_name, params, t,reader)
     
 %Display 
 disp(['Started frame: ',num2str(t)])
@@ -130,7 +102,8 @@ disp(['Started frame: ',num2str(t)])
     size_x = reader.getSizeX;
     size_y = reader.getSizeY;
     ZSlicesinStack = length(planes);
-
+    CHANNEL_id     = str2num(CHANNEL_name(9:end));
+    
     %Get image planes for this time point. 
     I = zeros(size_y,size_x,ZSlicesinStack);
 
@@ -149,10 +122,19 @@ disp(['Started frame: ',num2str(t)])
         I = bfGetPlane(reader,planes);
     end
     
+    % Mask image
+    if exp_info.steps.mask_channel>0
+        % Get Mask image. 
+        F = obj.get_frame_files;
+        load(F{1})
+        msk_channel_str = ['seg_channel_',pad(num2str(exp_info.steps.mask_channel),2,'left','0')];
+        mask = frame_obj.(msk_channel_str).BW;
+    else
+        mask = ones(size(I));
+    end  
     
-  
     % use segmenter2D to run segmentation steps. 
-    S = segmenter(I, image_bits, params, t);
+    S = segmenter(I, image_bits, exp_info.params.(CHANNEL_name).cells, t, mask);
     channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
     seg_steps = exp_info.steps.(channel_str).cells;
     for i = 1:length(seg_steps)
