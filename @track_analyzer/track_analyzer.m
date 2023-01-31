@@ -25,6 +25,9 @@ classdef track_analyzer
         
         %Masks for simple roi stuff
         masks
+
+        % bf Reader for accessing image. 
+        reader
     end
     
     properties (SetAccess = public )
@@ -377,7 +380,7 @@ classdef track_analyzer
         
         %Get reader for image. 
         function reader = get_reader(obj)
-           
+            
             reader=bfGetReader(obj.exp_info.img_file);
             
         end
@@ -439,6 +442,27 @@ classdef track_analyzer
             end
                 
         end
+
+        %Quick way to get a z-stack of a bf image reader at time t and channel c. 
+        function stack = get_stack(obj, t, c)
+            
+            reader = obj.get_reader();
+            
+            %Get the image size of this series. 
+            size_x = reader.getSizeX;
+            size_y = reader.getSizeY;
+            Z = reader.getSizeZ;
+            
+            %Get the images for this z-stack according to bioformats reader
+            stack = zeros(size_y,size_x,Z);
+            for i = 1:Z
+                this_plane = reader.getIndex(i-1,c-1,t-1)+1;
+                stack(:,:,i) = bfGetPlane(reader,this_plane);
+            end
+        
+        
+        end
+
        
     end
     

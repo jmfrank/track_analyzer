@@ -17,6 +17,8 @@ classdef segmenter < handle
         
         mask
         
+        blobs
+        
         steps %< internal tracking of all steps called
     end
     
@@ -629,13 +631,13 @@ classdef segmenter < handle
         % Local segmentation within masked objects. 
         function sub_region_segmentation(obj)
            
-            obj.stats = struct('cell_id',[],'Area',[],'PixelIdxList',[],'MeanIntensity',[],'mean_bg',[], ...
+            obj.blobs = struct('cell_id',[],'Area',[],'PixelIdxList',[],'MeanIntensity',[],'mean_bg',[], ...
                         'snr',[], 'sum_int',[],'Centroid',[]);
             %counter. 
             c=0;
             % Erosion strel
             SE = strel('disk',1);
-            % Now perform a local segmentation per nuclei/cell. Define S/N threshold. 1.2? 
+            % Now perform a local segmentation per blob. Define S/N threshold. 1.2? 
             n_cells = length(obj.msk_pxs);
             img_dims = length( size(obj.img) );
             for i = 1:n_cells
@@ -712,13 +714,15 @@ classdef segmenter < handle
                     sub_props(j).Centroid = ctr;
 
                     % now append to main structure. 
-                    obj.stats(c)=sub_props(j);
+                    obj.blobs(c)=sub_props(j);
                 end
                 
             end
             
-            % rebuild BW from stats. 
-            obj.rebuild_BW();
+            % rebuild BW from blobs. 
+            obj.BW = false(size(obj.img));
+            idx    = cat(1,obj.blobs.PixelIdxList);
+            obj.BW(idx)=1;
             
         end
 
@@ -807,13 +811,15 @@ classdef segmenter < handle
             indices=1:N;
 
             %create a frame_obj from masks. 
-            frame_obj.PixelIdxList = obj.msk_pxs;
+            frame_obj.PixelIdxList = obj.msk_pixels;
             frame_obj.centroids = obj.msk_centroids;
             % run local percentile thresholding per nucleus. params needs
             % to have field "local_thresh_percentile" with two values for
             % raw and filtered image. 
-            [obj.stats, ~] = local_threshold_cells( obj.img, obj.filtered, frame_obj, indices, obj.params );
-            obj.rebuild_BW();
+            [spot_stats, ~] = local_threshold_cells( obj.img, obj.filtered, frame_obj, indices, obj.params );
+            obj.BW = false(size(obj.img));
+            obj.BW( [app.spot_stats(:).PixelIdxList] ) = 1;
+            app.add_step('local_spot_threshold');
         end
 
 

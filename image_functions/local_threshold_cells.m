@@ -4,6 +4,8 @@
 %variation. 
 
 %% 1-29-23 update. Need to send frame_obj info specifically from the nuclei-segmentation channel. 
+% frame_obj has two fields, PixelidxList (cell array, as from output of bw
+% improp calculations), and centroids. 
 function [stats, assignment] = local_threshold_cells( img, img_filter, frame_obj, indices, params)
 
 %Loop over cells. 
