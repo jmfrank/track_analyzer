@@ -732,7 +732,6 @@ classdef segmenter < handle
         % haven't tested...
         function subtract_local_background(obj)
         
-            
 
             % Loop over cell nuclei in BW. 
             n = length(obj.msk_pxs);
@@ -824,7 +823,7 @@ classdef segmenter < handle
     
         function rebuild_BW(obj)
            
-            obj.BW = false(size(obj.BW));
+            obj.BW = false(size(obj.img));
             idx = cat(1,obj.stats.PixelIdxList);
             obj.BW(idx) = 1;
             
