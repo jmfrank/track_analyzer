@@ -40,7 +40,8 @@ switch length(img_size)
         % ranges. 
         ranges.x=x_range;
         ranges.y=y_range;
-    
+        ranges.z=1;
+        
     case 3
 
         % Check what format p is in. If it's just indices or coordinates. 

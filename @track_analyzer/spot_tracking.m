@@ -1,14 +1,21 @@
 %Perform spot detection in cell nuclei, 2D or 3D. Used for nascent transcription spots seen using FISH staining.
 %Use spot_tracking_LIVE for live-cell imaging. 
 
-function obj = spot_tracking(obj, params, step, frames)
+function obj = spot_tracking(obj, seg_info)
+
 
 
 % Image channel to segment
-channel_str = ['channel_',pad(num2str(params.seg_channel),2,'left','0')];
+channel_str = ['channel_',pad(num2str(seg_info.channel),2,'left','0')];
+
+params = obj.exp_info.params.(channel_str).spots;
+steps  = obj.exp_info.steps.(channel_str).spots;
+
+
+
 
 % Image channel that contains cell masks. 
-cell_channel_str = ['seg_channel_',pad(num2str(params.cell_channel),2,'left','0')];
+cell_channel_str = ['seg_channel_',pad(num2str(obj.exp_info.steps.(channel_str).mask_channel),2,'left','0')];
 
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
@@ -31,10 +38,11 @@ for t = frames
 
     
     %Get the images for this z-stack according to bioformats reader
-    img = zeros(Y,X,Z);
-    for i = 1:Z
-        this_plane = reader.getIndex(i-1,params.seg_channel-1,t-1)+1;
-        img(:,:,i) = bfGetPlane(reader,this_plane);
+    img = get_stack(reader,t,seg_info.channel);
+    
+    %Check segment dimensions. 
+    if params.seg_dims == 2
+        img = max(img,[],3);
     end
 
     %Load cell data and collect centroids. 
@@ -58,7 +66,7 @@ for t = frames
     
     
     %Decide which fitting processes to perform
-    switch step.Fit
+    switch obj.exp_info.steps.(channel_str).Fit
         
         %3d gaussian. 
         case '3D'
@@ -88,8 +96,9 @@ for t = frames
     frame_obj.(['seg_',channel_str]).fit = fit;
     save(seg_files{t}, 'frame_obj','-append');
     
-    struct2table(fit) %,'VariableNames',{'Cellid','sigmaXY','sigmaZ','Y','X','Z','Int','BG','D2P'})
+    %struct2table(fit) %,'VariableNames',{'Cellid','sigmaXY','sigmaZ','Y','X','Z','Int','BG','D2P'})
     display(['Completed frame: ',num2str(t)])
+    
 end
 
 
