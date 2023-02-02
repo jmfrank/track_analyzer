@@ -633,6 +633,9 @@ classdef segmenter < handle
                         'snr',[], 'sum_int',[],'Centroid',[]);
             %counter. 
             c=0;
+
+            obj.params
+            
             % Erosion strel
             SE = strel('disk',1);
             % Now perform a local segmentation per nuclei/cell. Define S/N threshold. 1.2? 
@@ -666,6 +669,11 @@ classdef segmenter < handle
                 % Calculate mean, std.     
                 int_mean = mean(vals_sel);
                 int_std  = std(vals_sel);
+
+                % Skip if mean nucleus intensity is not above threshold: 
+                if int_mean < obj.params.nucleus_int_threshold
+                    continue
+                end
 
                 % Mask out non-cell pixesl. 
                 sub_img = sub_img.*sub_mask;
@@ -714,7 +722,6 @@ classdef segmenter < handle
                     % now append to main structure. 
                     obj.stats(c)=sub_props(j);
                 end
-                
             end
             
             % rebuild BW from stats. 
