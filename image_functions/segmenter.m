@@ -191,33 +191,37 @@ classdef segmenter < handle
         
         
         function simple_thresholding(obj)
-           
-            obj.BW = obj.filtered >= obj.params.simple_threshold(obj.t);
+            % we refer to params.use_layer for thresholding. 
+            obj.BW = obj.(obj.params.use_layer) >= obj.params.simple_threshold(obj.t);
             obj.bw2stats();
 
         end
         
         function hist_thresholding(obj)
-           
-            P = prctile(obj.filtered(:),obj.params.percentile(obj.t));
-            obj.BW = obj.filtered >= P;
+            % we refer to params.use_layer for thresholding. 
+            img = obj.(obj.params.use_layer);
+
+            P = prctile(img(:),obj.params.percentile(obj.t));
+            obj.BW = img >= P;
             obj.bw2stats();
 
         end
         
         function adaptive_thresholding(obj)
-           
+            % we refer to params.use_layer for thresholding. 
+            img = obj.(obj.params.use_layer);
+
             %First find local maxima of filtered image. 
-            BWmax = imextendedmax(obj.filtered,obj.params.Hdepth);
+            BWmax = imextendedmax(img,obj.params.Hdepth);
 
             %Local max region props. 
-            stats_max = regionprops(BWmax,obj.filtered,'centroid','MeanIntensity','PixelIdxList');
+            stats_max = regionprops(BWmax,img,'centroid','MeanIntensity','PixelIdxList');
 
             % Use the mean intensity of blobs to create an estimate of the best local
             % intensity threshold. 
             C = cat(1,stats_max.Centroid);
             ints = cat(1,stats_max.MeanIntensity);
-            img_size = size(obj.filtered);
+            img_size = size(img);
             
             % 2d vs 3d. 
             switch length(img_size)
@@ -246,7 +250,7 @@ classdef segmenter < handle
             % Generate first estimate from vq and starting threshold. Uses
             % parameter: "local_threshold_factor" to obtain desired local
             % threshold. 
-            obj.BW = obj.filtered >= obj.params.local_threshold_factor.*vq;
+            obj.BW = img >= obj.params.local_threshold_factor.*vq;
 
             %obj.BW = obj.BW.*obj.mask;
             obj.bw2stats();
