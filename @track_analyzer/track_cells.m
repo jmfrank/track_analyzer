@@ -70,7 +70,8 @@ end
 
 %Error if there were no cells in any frames.
 if(~exist('start_frame','var'))
-    error('No cells found in any frame. Stopping.');
+    warning('No cells found in any frame. Stopping.');
+    return
 end
 
 %Clear the tracks field

@@ -9,9 +9,15 @@ omeMeta = reader.getMetadataStore();
 
 %Try to get physical size. Everything in microns...Might not be there. 
 try
-    tmp = [omeMeta.getPixelsPhysicalSizeX(0).value(ome.units.UNITS.MICROMETER),...
-        omeMeta.getPixelsPhysicalSizeY(0).value(ome.units.UNITS.MICROMETER),omeMeta.getPixelsPhysicalSizeZ(0).value(ome.units.UNITS.MICROMETER)];
-    obj.exp_info.pixel_size = double(tmp)';
+    x = omeMeta.getPixelsPhysicalSizeX(0).value(ome.units.UNITS.MICROMETER);
+    y = omeMeta.getPixelsPhysicalSizeY(0).value(ome.units.UNITS.MICROMETER);
+    % check if z is empty
+    if isempty(omeMeta.getPixelsPhysicalSizeZ(0))
+        z = 0; 
+    else
+        z = omeMeta.getPixelsPhysicalSizeZ(0).value(ome.units.UNITS.MICROMETER);
+    end
+    obj.exp_info.pixel_size = [double(x),double(y),double(z)];
 catch
     
     %Need to  supply the pixel_size manually.

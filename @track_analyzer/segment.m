@@ -94,7 +94,8 @@ disp(['Started frame: ',num2str(t)]);
         load(F{1})
         msk_channel_str = ['seg_channel_',pad(num2str(obj.exp_info.steps.(CHANNEL_name).mask_channel),2,'left','0')];
         mask = frame_obj.(msk_channel_str).PixelIdxList;
-        S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, mask);
+        mask_centroids = frame_obj.(msk_channel_str).centroids;
+        S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, mask, mask_centroids);
     else
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t);
     end
@@ -150,7 +151,7 @@ disp(['Started frame: ',num2str(t)]);
             %Add final binarized image to frame_obj for save keeping
             frame_obj.(seg_channel_name).BW = S.BW;
             %Add sub-nuclear segmented nucleoli. 
-            frame_obj.(seg_channel_name).foci=S.blobs;
+            frame_obj.(seg_channel_name).foci=S.stats;
             
     end
        

@@ -145,15 +145,19 @@ for t = frames
         
 
         %% Make a range of planes to use based on params.z_range
-        z_planes = idx-params.z_range: idx+params.z_range;
-        %Need to adjust z-planes if they are outside of img
-        if(z_planes(end) > Z)
-            sel = z_planes <= Z;
-            z_planes = z_planes(sel);
-        end
-        if( z_planes(1) < 1 )
-            sel = z_planes >= 1;
-            z_planes = z_planes(sel);
+        if size_z == 1
+            z_planes = 1;
+        else
+            z_planes = idx-params.z_range: idx+params.z_range;
+            %Need to adjust z-planes if they are outside of img
+            if(z_planes(end) > Z)
+                sel = z_planes <= Z;
+                z_planes = z_planes(sel);
+            end
+            if( z_planes(1) < 1 )
+                sel = z_planes >= 1;
+                z_planes = z_planes(sel);
+            end
         end
         
         
