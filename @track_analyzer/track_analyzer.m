@@ -28,6 +28,9 @@ classdef track_analyzer
 
         % bf Reader for accessing image. 
         reader
+
+        % Bleedthrough model
+        bleed_through
     end
     
     properties (SetAccess = public )
@@ -459,8 +462,15 @@ classdef track_analyzer
                 this_plane = reader.getIndex(i-1,c-1,t-1)+1;
                 stack(:,:,i) = bfGetPlane(reader,this_plane);
             end
-        
-        
+        end
+
+        % Add bleed-through model to the data. 
+        function add_bleed_through_model(obj,p,c)
+
+            %store linear model of bleedthrough. 
+            obj.bleed_through.model = p;
+            obj.bleed_through.channel = c;
+            obj.save;
         end
 
        

@@ -15,6 +15,12 @@ if(debug)
     color_vec  = color_vec(randperm(size(color_vec,1)),:);
 end
 
+% parameters needed: 
+    % seg_channel:
+    % sig_channel:
+    % dilation_buffer:
+    % params.background_distance:
+    % params.background_thickness:
 
 % Channel str.
 channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
@@ -59,7 +65,7 @@ for t = frames
     bw = frame_obj.(channel_str).BW;
     
     % dilate all masks by 'dilation_buffer' pixels. Use this to
-    % prevent overlap of local background estimation. 
+    % prevent overlap of local background estimation between distinct objects. 
     se = strel('disk',params.dilation_buffer,8);
     bw_all_masks_dilated = imdilate(bw,se);
 
@@ -94,19 +100,17 @@ for t = frames
         % this is old code---need to re-write. 
         mask_dims = length(size(frame_obj.(channel_str).BW));
         if mask_dims == 3
+            
             BW = zeros(size_y,size_x,size_z);
             px = frame_obj.(channel_str).PixelIdxList{j};
             BW(px)=1;
-            % Max project.
-            BW = max(BW,[],3);
+
             %Get pixel coordinates. 
             [px_Y, px_X, px_Z] = ind2sub([size_y,size_x,size_z],px);
 
             %Create mask. 
             roi_bw_nuc = logical(BW);
-            
-            idx = round(frame_obj.(channel_str).centroids{j}(3));
-            
+                        
         % Estimate z-plane from max intensity.
         elseif mask_dims == 2
 
@@ -128,19 +132,20 @@ for t = frames
         if size_z == 1
             z_planes = 1;
         else
-            % need to write if necessary. 
-            error('finish this')
+            z_planes = 1:size_z;
         end
         
         
         %% Analyze the signal channel. 
         %Look at sub-region of image containing this cell. Need to exapnd
-        %to include outer boundary. 
+        %to include outer boundary. We don't want to look at pixels above
+        %and below blobs for background. 
         out_boundary = params.background_distance + params.background_thickness;
         x_min = max(1,min(px_X)-out_boundary);
         x_max = min(size_x,max(px_X)+out_boundary);
         y_min = max(1,min(px_Y)-out_boundary);
         y_max = min(size_y,max(px_Y)+out_boundary);
+        
         %New [x,y] range. 
         x_range = [x_min:x_max];
         y_range = [y_min:y_max];

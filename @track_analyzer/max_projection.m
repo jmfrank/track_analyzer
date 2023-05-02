@@ -1,16 +1,14 @@
-%Function for making a down-sampled time-lapse image for reviewing cell
-%tracking. First max projection, then convert to 8-bit, write tiff
-%sequence. 
+%Make a max-projection of the source image, preserve bits. 
 
-function obj = create_ds_time_series(obj, params)
+function obj = max_projection(obj, params)
 
 debug = 0;
 if nargin<2
-    params.channel=1;
     params.z_planes='all';
 elseif ~isfield( params, 'z_planes' )
    params.z_planes='all'; 
 end
+
 
 %Figure out how many img_files. 
 if iscell(obj.exp_info.img_file)
@@ -43,37 +41,37 @@ for i = 1:length(IMG_files)
     %Get the image size of this series. 
     size_x = reader.getSizeX;
     size_y = reader.getSizeY;
+    size_z = reader.getSizeZ;
+    %Number of channels? 
+    size_c = reader.getSizeC;
 
     %Output image. 
-    out_img = zeros(size_y,size_x,T,'uint8');
+    out_img = zeros(size_y,size_x,T,1,size_c,['uint',num2str(BITS)]);
+
     [d,fname,ex] = fileparts(this_file);
 
     %LSM time series goes Z first, then time. For each time point, load the
     %Z-stack at time t, then max project, append to output image. ALways convert to 8-bit. 
     disp_str='';
+
     
     for t = 1:T
-
-        %Get the images for this z-stack according to bioformats reader
-        stack = get_stack( reader, t, params.channel);
         
-        % Remove planes as desired. 
-        stack = stack(:,:, params.z_planes);
-        
-        %Downsample if 16 bit. 
-        if(BITS==16)
-            out_img(:,:,t) = uint8( max(stack,[],3) ./ 65535 .* 255 );
-        elseif(BITS==12)
-            out_img(:,:,t) = uint8( max(stack,[],3) ./4095 .*255 ); 
-        elseif(BITS==8)
-            out_img(:,:,t) = max(stack,[],3);
-        else
-            disp('unsupported bit type!');
-        end 
+        for c = 1:size_c    
 
-        fprintf(repmat('\b',[1,length(disp_str)+1]))
-        disp_str = ['at frame: ',num2str(t)];
-        disp(disp_str)
+            %Get the images for this z-stack according to bioformats reader
+            stack = get_stack( reader, t, c);
+            
+            % Remove planes as desired. 
+            stack = stack(:,:, params.z_planes);
+            
+            out_img(:,:,t,1,c) = max(stack,[],3);
+    
+            fprintf(repmat('\b',[1,length(disp_str)+1]))
+            disp_str = ['at frame: ',num2str(t)];
+            disp(disp_str)
+
+        end
     end
 
     %Apparently we don't need to re-order to 5D image with xy? Using order: XYTZC
