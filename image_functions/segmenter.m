@@ -48,15 +48,13 @@ classdef segmenter < handle
             obj.image_bits= image_bits;
             obj.params=params;
             obj.t=t;
+
+            %Default mask is blank. 
+            obj.mask = false(size(obj.img));
             
-            if nargin >= 5 % need to provide msk_pxs and msk_centroids. 
-                obj.msk_pxs = msk_pxs;
-                obj.msk_centroids = msk_centroids;
-                % rebuild mask. 
-                obj.mask = false(size(obj.img));
-                obj.mask( cat(1,msk_pxs{:}) ) = 1;
+            if nargin > 4 % need to provide msk_pxs and msk_centroids. 
+                obj.add_mask(msk_pxs, msk_centroids);  
             end
-                        
         end
         
         % Image processing functions. 
@@ -826,7 +824,14 @@ classdef segmenter < handle
             obj.rebuild_BW();
         end
 
+        function add_mask(obj, msk_pxs, msk_centroids)
 
+            obj.msk_pxs       = msk_pxs;
+            obj.msk_centroids = msk_centroids;
+
+            % build a mask binary. 
+            obj.mask( cat(1, msk_pxs{:}) ) = 1;
+        end
     end
 
             

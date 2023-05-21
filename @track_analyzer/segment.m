@@ -93,8 +93,8 @@ disp(['Started frame: ',num2str(t)]);
         F = obj.get_frame_files;
         load(F{1})
         msk_channel_str = ['seg_channel_',pad(num2str(obj.exp_info.steps.(CHANNEL_name).mask_channel),2,'left','0')];
-        mask = frame_obj.(msk_channel_str).PixelIdxList;
-        mask_centroids = frame_obj.(msk_channel_str).centroids;
+        mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
+        mask_centroids = frame_obj.(msk_channel_str).cells.centroids;
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, mask, mask_centroids);
     else
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t);
@@ -122,16 +122,16 @@ disp(['Started frame: ',num2str(t)]);
 
             % add stats to frame_obj. 
             for i = 1:length(S.stats)       
-                frame_obj.(seg_channel_name).PixelIdxList{i} = S.stats(i).PixelIdxList;
-                frame_obj.(seg_channel_name).centroids{i}    = S.stats(i).Centroid;
+                frame_obj.(seg_channel_name).cells.PixelIdxList{i} = S.stats(i).PixelIdxList;
+                frame_obj.(seg_channel_name).cells.centroids{i}    = S.stats(i).Centroid;
 
                 this_cell = false(size(S.BW));
                 this_cell(S.stats(i).PixelIdxList) = 1;
-                frame_obj.(seg_channel_name).touches_border(i) = any(this_cell.*borders,'all');
+                frame_obj.(seg_channel_name).cells.touches_border(i) = any(this_cell.*borders,'all');
             end
 
             %Add final binarized image to frame_obj for save keeping
-            frame_obj.(seg_channel_name).BW = S.BW;
+            frame_obj.(seg_channel_name).cells.BW = S.BW;
 
             %Trace boundaries.
             cBW = max(S.BW, [], 3);
@@ -140,18 +140,18 @@ disp(['Started frame: ',num2str(t)]);
                 C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
                 c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
                 %Match centroids. 
-                fobj_ctrs = cat(1,frame_obj.(seg_channel_name).centroids{:});
+                fobj_ctrs = cat(1,frame_obj.(seg_channel_name).cells.centroids{:});
                 D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
                 [~,idx] = min(D);
-                frame_obj.(seg_channel_name).contours=C( idx );
+                frame_obj.(seg_channel_name).cells.contours=C( idx );
             end
 
         case 'foci'
         
             %Add final binarized image to frame_obj for save keeping
-            frame_obj.(seg_channel_name).BW = S.BW;
+            frame_obj.(seg_channel_name).foci.BW = S.BW;
             %Add sub-nuclear segmented nucleoli. 
-            frame_obj.(seg_channel_name).foci=S.stats;
+            frame_obj.(seg_channel_name).foci.stats =S.stats;
             
     end
        
@@ -162,7 +162,7 @@ disp(['Started frame: ',num2str(t)]);
         mkdir(obj.exp_info.nuc_seg_dir)
     end
         
-    parsave([obj.exp_info.nuc_seg_dir,fname],frame_obj,seg_channel_name)
+    parsave([obj.exp_info.nuc_seg_dir,fname],frame_obj,seg_channel_name,seg_type)
     if exist('disp_str','var'); clearString(disp_str); end
     disp_str = ['Finished frame:     ',num2str(t)];
     disp(disp_str)
@@ -178,7 +178,7 @@ end
 end
 
 %Parallel saving technique
-function parsave(fname, frame_obj, channel_str)
+function parsave(fname, frame_obj, channel_str,seg_type)
 
 if exist( fname, 'file')
     try
@@ -188,8 +188,10 @@ if exist( fname, 'file')
         warning('encountered empty frame file')
     end
     
-    D.frame_obj.(channel_str) = frame_obj.(channel_str);
+    %Append the newly segmented data to existing frame. 
+    D.frame_obj.(channel_str).(seg_type) = frame_obj.(channel_str).(seg_type);
     frame_obj = D.frame_obj;
+
     try
         save(fname,'frame_obj','-append');
     catch
