@@ -1,4 +1,4 @@
-
+function add_directory_to_csv()
 %% Adding a directory of files to CSV
 clear
 
@@ -6,7 +6,7 @@ loc = 'Work'
 
 %csv_file = '/home/matt/Dropbox/TEAD_paper/data/tead_experiments.csv'
 csv_file = '/Users/mf2741/Dropbox/TEAD_paper/stowers.csv';
-
+csv_file = '/home/matt/Dropbox/TEAD_paper/stanford_experiments.csv'
 %Read csv file
 [fid message ] = fopen(strtrim(csv_file));
 data = textscan(fid,'%s %s %s %s %s %s %s',800,'delimiter',',');
@@ -22,23 +22,24 @@ else
     disp('Location must be "Home" or "Work"');
 end
 
-selpath = uigetdir('/media/matt/DATA_1_guan/cell_lines');
+selpath = uigetdir('/media/matt/internal_8TB/data/microscopy/stanford/');
 
 % Loop through all subdirectories, if any. Dir is recursive using **. Just
 % limit to ns2 file for now. 
-these_files = dir2(fullfile(selpath, '**/*.czi'));
-these_files = these_files(~[these_files.isdir]);
+file_types={'.tif','.ns2','.czi'}; %add more as necessary
+
+all_files = get_files_of_type(selpath,file_types);
+all_files = all_files(~[all_files.isdir]);
 
 %Counter
 c=1;
 
 % pre-fix for the directory:
 prefix=tmp{1};
-for i = 1:length(these_files)
-
+for i = 1:length(all_files)
     %Add a row for this file
-    data{1}{start_row+c} = cut_string_at(these_files(i).folder);
-    data{2}{start_row+c} = these_files(i).name;
+    data{1}{start_row+c} = erase(all_files(i).folder, prefix);
+    data{2}{start_row+c} = all_files(i).name;
     c = c+ 1;
 end   
 
@@ -54,4 +55,17 @@ for i = 1:length(data)
 end
 %Print csv
 cell2csv(csv_file,new_data,',');
+
+end
+
+function all_files = get_files_of_type(selpath,file_types)
+
+    all_files=[];
+    for i=1:length(file_types)
+        these_files=dir2(fullfile(selpath, ['**/*',file_types{i}]))
+        all_files=[all_files; these_files];
+    end
+
+end
+
 
