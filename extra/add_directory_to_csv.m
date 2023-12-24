@@ -62,7 +62,7 @@ function all_files = get_files_of_type(selpath,file_types)
 
     all_files=[];
     for i=1:length(file_types)
-        these_files=dir2(fullfile(selpath, ['**/*',file_types{i}]))
+        these_files=dir2(fullfile(selpath, ['**/*',file_types{i}]));
         all_files=[all_files; these_files];
     end
 

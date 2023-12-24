@@ -36,7 +36,7 @@ switch seg_type
         out_params.h_min_depth=1.5;
         out_params.merge_dist=20;
         out_params.WaterShedMaxVol = 3000;
-        
+        out_params.img_scale=1;
         
         
     case 'spots'
@@ -44,7 +44,8 @@ switch seg_type
         out_params.spot_sigma = [3,3,1];
         out_params.local_thresh_percentile(1) = 90;
         out_params.local_thresh_percentile(2) = 90;
-        
+        out_params.img_scale=1;
+
 end
 
 end

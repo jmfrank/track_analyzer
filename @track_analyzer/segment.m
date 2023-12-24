@@ -74,7 +74,7 @@ disp(['Started frame: ',num2str(t)]);
     seg_type       = seg_info.type;
     %Get the bio-formats image index corresponding to this z-stack:
     I = get_stack(reader, t, seg_info.channel);
-    
+    original_size=size(I);
     %Reduce i for debugging
     if(debug)
         I = I(1:512,1:512,:);
@@ -87,14 +87,40 @@ disp(['Started frame: ',num2str(t)]);
         I = max(I,[],3);
     end
     
+    %Check if we reduce image scale. 
+    img_scale = obj.exp_info.params.(CHANNEL_name).(seg_type).img_scale;
+    if img_scale > 1
+        I = imresize3(I,1/img_scale);
+        display(["New image size ", string(size(I))])
+    end
+
+
     % Get mask, and initialize segmenter object. 
     if obj.exp_info.steps.(CHANNEL_name).mask_channel>0
         % Get Mask image. 
         F = obj.get_frame_files;
         load(F{1})
         msk_channel_str = ['seg_channel_',pad(num2str(obj.exp_info.steps.(CHANNEL_name).mask_channel),2,'left','0')];
-        mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
-        mask_centroids = frame_obj.(msk_channel_str).cells.centroids;
+        % reduce size if needed: 
+        if img_scale > 1
+
+            % Make a new BW from original mask data. 
+            bw = obj.rebuild_BW(frame_obj.(msk_channel_str).cells.PixelIdxList);
+            newBW=imresize3(bw, 1/img_scale);
+            new_stats=regionprops(newBW,'Centroid','PixelIdxList');            % add stats to frame_obj. 
+            stats=[];
+            for i = 1:length(new_stats)       
+                stats.PixelIdxList{i} = new_stats(i).PixelIdxList;
+                stats.centroids{i}    = new_stats(i).Centroid;
+            end
+      
+            mask = stats.PixelIdxList;
+            mask_centroids=stats.centroids;
+        else
+            mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
+            mask_centroids = frame_obj.(msk_channel_str).cells.centroids;
+        end
+
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, mask, mask_centroids);
     else
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t);
@@ -108,6 +134,10 @@ disp(['Started frame: ',num2str(t)]);
         S.(seg_steps(i).type);
     end
 
+    % Compensate if original image was re-scaled for speed. 
+    if img_scale > 1
+        S.reverse_scaling(original_size);
+    end
     %% Output. 
     % Create frame_obj and save. 
     seg_channel_name=strcat('seg_',CHANNEL_name);
@@ -131,7 +161,7 @@ disp(['Started frame: ',num2str(t)]);
             end
 
             %Add final binarized image to frame_obj for save keeping
-            frame_obj.(seg_channel_name).cells.BW = S.BW;
+            %frame_obj.(seg_channel_name).cells.BW = S.BW;
 
             %Trace boundaries.
             cBW = max(S.BW, [], 3);
@@ -152,7 +182,9 @@ disp(['Started frame: ',num2str(t)]);
             frame_obj.(seg_channel_name).foci.BW = S.BW;
             %Add sub-nuclear segmented nucleoli. 
             frame_obj.(seg_channel_name).foci.stats =S.stats;
-            
+        
+        case 'spots'
+            frame_obj.(seg_channel_name).spots.stats=S.stats;
     end
        
     %Save frame_obj
@@ -190,24 +222,15 @@ if exist( fname, 'file')
     
     %Append the newly segmented data to existing frame. 
     D.frame_obj.(channel_str).(seg_type) = frame_obj.(channel_str).(seg_type);
+    
     frame_obj = D.frame_obj;
 
-    try
-        save(fname,'frame_obj','-append');
-    catch
-        %For large files...
-        save(fname, 'frame_obj','-v7.3','-append');
-    end
+    save(fname, 'frame_obj','-v7.3');
 else
-    
-    try
-        save(fname,'frame_obj');
-    catch
-        %For large files...
-        save(fname, 'frame_obj','-v7.3');
-    end
+    save(fname, 'frame_obj','-v7.3');
 
 end
+
 end
 
 

@@ -1,4 +1,3 @@
-
 % Calculate mean signal inside a segmented obj. 
 
 % Use dilation to calculate local background values. 
@@ -17,15 +16,21 @@ end
 
 % parameters needed: 
     % seg_channel:
+    % seg_type: 'foci', 'cells', etc. 
     % sig_channel:
     % dilation_buffer:
     % params.background_distance:
     % params.background_thickness:
+% Optional
+    % max_p = True -> use max-projection image. must already be made. 
+
+if ~isfield(params,'max_p')
+    params.max_p = false;
+end
 
 % Channel str.
 channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 
-Z = obj.exp_info.z_planes;
 T = obj.exp_info.t_frames;
 
 if nargin < 4
@@ -34,20 +39,36 @@ else
     frames = force_frames;
 end
 
-%Generate reader. FOR NOW, assume we are looking in series 1. 
-reader = bfGetReader(obj.exp_info.img_file);
-series = 1;
+%check if we use max projection. 
+if params.max_p
+    %Generate reader. FOR NOW, assume we are looking in series 1. 
+    reader = bfGetReader(obj.exp_info.max_p_img);
+    series = 1;
+else
+    %Generate reader. FOR NOW, assume we are looking in series 1. 
+    reader = bfGetReader(obj.exp_info.img_file);
+    series = 1;
+end
 
 %Get the image size of this series. 
 size_x = reader.getSizeX;
 size_y = reader.getSizeY;
 size_z = reader.getSizeZ;
 
+% make a big BW mask. 
+if size_z > 1
+    BW = false(size_y,size_x,size_z);
+else
+    BW = false(size_y,size_x);
+end
+
 %Get segmentation file names. 
 seg_files = obj.get_frame_files;
 
+disp(['Intensity analysis using channel ',channel_str])
+
 for t = frames
-    display(['Analyzing mean signal of frame: ',num2str(t)])
+    display(['Analyzing frame: ',num2str(t)])
     tic
 
     %Load the Frame_obj file associated with this image
@@ -61,8 +82,12 @@ for t = frames
     msk_img = get_stack(reader,t,params.seg_channel);
     sig_img = get_stack(reader,t,params.sig_channel);
    
-    % get bw masks of whole image. 
-    bw = frame_obj.(channel_str).BW;
+    % Get data to perform calculations. 
+
+    seg_data = frame_obj.(channel_str).(params.seg_type);
+    % Get segmentation stats. rebuild a bw. 
+    stats = seg_data.stats;
+    bw = obj.rebuild_BW(cat(1,stats.PixelIdxList));
     
     % dilate all masks by 'dilation_buffer' pixels. Use this to
     % prevent overlap of local background estimation between distinct objects. 
@@ -76,9 +101,9 @@ for t = frames
     zSEL = msk_img == 0;
     msk_img(zSEL) = NaN;
    
-    %Loop over detected cells
-    if isfield(frame_obj.(channel_str),'PixelIdxList')
-        n_cells = length(frame_obj.(channel_str).PixelIdxList);
+    %Loop over detected objects
+    if isfield(seg_data.stats,'PixelIdxList')
+        n_cells = length(seg_data.stats);
     else
         disp(['No cells in frame: ', num2str(t)])
         continue
@@ -87,43 +112,40 @@ for t = frames
     %Create empty structure for nuclear / cytoplasm calculations
     data = gen_data_struct( n_cells );
 
-    %Loop over cells. 
-    f = waitbar(0, 'Starting');
-
+    if usejava('desktop')
+        f = waitbar(0, 'Starting');
+    end
     %Loop over cells. 
     for j = 1:n_cells
         
         % wait bar. 
-        waitbar(j/n_cells, f, sprintf('Progress: %d %%', floor(j/n_cells*100)));
-        pause(0.001);        
+        if usejava('desktop')
+            waitbar(j/n_cells, f, sprintf('Progress: %d / %d', j, n_cells));
+            pause(0.001);        
+        end
 
         % this is old code---need to re-write. 
-        mask_dims = length(size(frame_obj.(channel_str).BW));
+        mask_dims = length(size(bw));
         if mask_dims == 3
             
-            BW = zeros(size_y,size_x,size_z);
-            px = frame_obj.(channel_str).PixelIdxList{j};
-            BW(px)=1;
+            %Force BW to be zero again (saves time this way)
+            roi_bw_nuc = false(size(BW));
+            px = seg_data.stats(j).PixelIdxList;
+            roi_bw_nuc(px)=true;
 
             %Get pixel coordinates. 
             [px_Y, px_X, px_Z] = ind2sub([size_y,size_x,size_z],px);
-
-            %Create mask. 
-            roi_bw_nuc = logical(BW);
                         
         % Estimate z-plane from max intensity.
         elseif mask_dims == 2
 
             %Get a 2D mask of this cell....
-            BW = zeros(size_y,size_x);
-            px = frame_obj.(channel_str).PixelIdxList{j};
-            BW(px) = 1;
+            roi_bw_nuc = false(size(BW));
+            px = seg_data.stats(j).PixelIdxList;
+            roi_bw_nuc(px) = true;
             
             %Get pixel coordinates. 
             [px_Y,px_X] = ind2sub([size_y,size_x],px);
-
-            %Create mask. 
-            roi_bw_nuc = logical(BW);
 
         end
         
@@ -145,37 +167,44 @@ for t = frames
         x_max = min(size_x,max(px_X)+out_boundary);
         y_min = max(1,min(px_Y)-out_boundary);
         y_max = min(size_y,max(px_Y)+out_boundary);
-        
+                   
         %New [x,y] range. 
         x_range = [x_min:x_max];
         y_range = [y_min:y_max];
-               
-        sub_stack = sig_img(:,:,z_planes);
+
+        if mask_dims == 3
+            z_min = max(1,min(px_Z)-out_boundary);
+            z_max = min(size_z,max(px_Z)+out_boundary);
+            z_range = [z_min:z_max];
+        end
+
+        sub_img = sig_img(y_range,x_range,z_range);
         
         %Tricky part: we need to ignore pixels belonging to other nuclei! 
             %All PixelIdx NOT belonging to cell j. 
             sel = [1:n_cells] ~= j;
             % 3D case.
             if size_z > 1
-                ind = cat(1,frame_obj.(channel_str).PixelIdxList{sel});
+                ind = cat(1,seg_data.stats(sel).PixelIdxList);
                 not_this_cell = false(size_y,size_x,size_z);
                 not_this_cell(ind) = true;
-                not_this_cell = not_this_cell(:,:,z_planes);
+                nan_mask = not_this_cell(y_range,x_range,z_range);
             else
-                ind = cat(1,frame_obj.(channel_str).PixelIdxList{sel});
+                ind = cat(1,seg_data.stats(sel).PixelIdxList);
                 not_this_cell = false(size_y,size_x);
                 not_this_cell(ind) = 1;
                 %3D mask.
                 not_this_cell = repmat(not_this_cell,[1,1,length(z_planes)]);
+                nan_mask = not_this_cell(y_range,x_range,:);
             end
             
-            %Using not_this_cell as mask, replace all pixels with NaN. 
-            sub_stack( not_this_cell ) = NaN;
+            %multiply sub_stack by the mask 
+            sub_img(nan_mask)= NaN;
             
         %Now get sub_img using sub_stack. Still a img volume though...
-        sub_img = double(sub_stack(y_range,x_range,:));
-        sub_mask = roi_bw_nuc(y_range,x_range,:);
-        sub_bw_all_masks_dilated = bw_all_masks_dilated(y_range,x_range,:);
+        %sub_img = double(sub_stack(y_range,x_range,:));
+        sub_mask = roi_bw_nuc(y_range,x_range,z_range);
+        sub_bw_all_masks_dilated = bw_all_masks_dilated(y_range,x_range,z_range);
         
         % first dilate to background distance. 
         se_inner = strel('disk',params.background_distance,8);
@@ -192,27 +221,35 @@ for t = frames
         data(j).sum_int = sum(vals);
         data(j).mean_int = mean(vals);
         data(j).cell_id = j;
-        data(j).nuc_area = sum(sub_mask(:));
+        data(j).area = sum(sub_mask(:));
         data(j).local_background = mean(bg_vals);
-        
+%         
 %         figure(1); clf
 %         imshow3D(sub_background_mask)
 %         figure(2); clf
 %         imshow3D(sub_bw_all_masks_dilated)
 % 
 %         pause
+
+       % figure(1); imshow3D(sub_img)
+       % figure(2); imshow3D(not_this_cell(y_range,x_range,:))
     end
-    close(f);
 
     %Now save the frame_obj. Saving to a channel specific field.
-    frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]) = data;
+    frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type) = data;
     save(seg_files{t},'frame_obj','-append')
+    
+    
+    if usejava('desktop')    
+        delete(f);
+    end
 
     if(debug)
         pause
         if(i < length(obj.img_files));clf(7);
         end
     end
+
     toc
 end
 
@@ -224,7 +261,7 @@ end
 function data = gen_data_struct( N )
 
 %Fields
-data(N) = struct('sum_int',[],'mean_int',[],'cell_id',[],'nuc_area',[],'local_background',[]);
+data(N) = struct('sum_int',[],'mean_int',[],'cell_id',[],'area',[],'local_background',[]);
 
 end
 %% DEBUGGING code for plotting contours. 
@@ -236,13 +273,13 @@ end
 %     imshow3D(img);    
 %         hold on
 % 
-%     for i = 1:length(C)
-%         plot(C{i}(:,1),C{i}(:,2),'linewidth',2)
-%     end
-% end
-% 
-% 
-% 
-% end
+function debugge()
+c = contourc(double(max(sub_background_mask,[],3)),[0.5,0.5])
+C=C2xyz(c)
+imshow3D(img)
+hold on
+for i = 1:length(C)
+    plot(C{i}(:,1),C{i}(:,2),'linewidth',2)
+end
 
-
+end

@@ -472,7 +472,19 @@ classdef track_analyzer
             obj.bleed_through.channel = c;
             obj.save;
         end
-
+   
+        % Rebuild a BW from pixelIdxList (cell array) and image size. 
+        function BW = rebuild_BW(obj, pixel_list)
+           
+            if iscell(pixel_list)
+                pixel_list = cat(1,pixel_list{:});
+            end
+            if ~isvector(pixel_list)
+                error('Pixel list is wrong type')
+            end
+            BW = false( [obj.exp_info.img_size,obj.exp_info.z_planes]);
+            BW(pixel_list) = 1;
+        end
        
     end
     

@@ -50,8 +50,7 @@ classdef segmenter < handle
             obj.t=t;
 
             %Default mask is blank. 
-            obj.mask = false(size(obj.img));
-            
+            obj.mask = false(size(obj.img));            
             if nargin > 4 % need to provide msk_pxs and msk_centroids. 
                 obj.add_mask(msk_pxs, msk_centroids);  
             end
@@ -198,7 +197,6 @@ classdef segmenter < handle
         function hist_thresholding(obj)
             % we refer to params.use_layer for thresholding. 
             img = obj.(obj.params.use_layer);
-
             P = prctile(img(:),obj.params.percentile(obj.t));
             obj.BW = img >= P;
             obj.bw2stats();
@@ -231,7 +229,7 @@ classdef segmenter < handle
 
                 case 3
                     % This goes way faster by downsampling xy?
-                    reduction=4; % factor to reduce xy sampling.                 
+                    reduction=16; % factor to reduce xy sampling.                 
                     [xq,yq,zq] = meshgrid(1:reduction:img_size(2),1:reduction:img_size(1),1:img_size(3));
                     F = scatteredInterpolant( C(:,1),C(:,2),C(:,3),ints, 'natural','nearest');
                     % use parallel computing to run scattered interp. 
@@ -779,29 +777,28 @@ classdef segmenter < handle
         end
 
         % thresholding spots. 
-        function spot_threshold_simple(obj, cell_centroids)
+        function spot_simple_threshold(obj)
                     
-            obj.BW = obj.filtered >= obj.params.spot_threshold;
+            obj.BW = obj.filtered >= obj.params.simple_threshold;
+            obj.bw2stats();
 
-            obj.spot_stats = regionprops(logical(obj.BW),'Centroid','PixelIdxList','Area');
-            
             % assign to (app.seg_type). 
-            seg_dim = length( obj.spot_stats(1).Centroid);
-            spot_centroids = cat(1, obj.spot_stats.Centroid);
-            cell_centroids = cat(1,obj.msk_centroids{:});
+            %seg_dim = length( obj.spot_stats(1).Centroid);
+            %spot_centroids = cat(1, obj.spot_stats.Centroid);
+            %cell_centroids = cat(1,obj.msk_centroids{:});
             
-            if seg_dim == 2 && size(cell_centroids,2)==2
-                D = pdist2(spot_centroids, cell_centroids);
-            elseif seg_dim ==2 && size(cell_centroids,2) ==3
-                cell_centroids = [cell_centroids, h/2*ones(size(cell_centroids,1),1)];
-                D = pdist2(spot_centroids, cell_centroids);
-            elseif seg_dim ==3 && size(cell_centroids,2)==3
-                D = pdist2(spot_centroids, cell_centroids);
-            end
+            %if seg_dim == 2 && size(cell_centroids,2)==2
+            %    D = pdist2(spot_centroids, cell_centroids);
+            %elseif seg_dim ==2 && size(cell_centroids,2) ==3
+             %   cell_centroids = [cell_centroids, h/2*ones(size(cell_centroids,1),1)];
+            %    D = pdist2(spot_centroids, cell_centroids);
+            %elseif seg_dim ==3 && size(cell_centroids,2)==3
+            %    D = pdist2(spot_centroids, cell_centroids);
+            %end
             
-            [~,assignment] = min(D,[],2);
-            A = num2cell(assignment);
-            [obj.spot_stats.assignment] = A{:};
+            %[~,assignment] = min(D,[],2);
+            %A = num2cell(assignment);
+            %[obj.spot_stats.assignment] = A{:};
             
                                 
         end
@@ -832,6 +829,12 @@ classdef segmenter < handle
             % build a mask binary. 
             obj.mask( cat(1, msk_pxs{:}) ) = 1;
         end
+
+        % Resize image based on [y,x,z] dimensions
+        function reverse_scaling(obj,img_scale)
+            obj.BW = imbinarize(imresize3(double(obj.BW),img_scale));
+            obj.bw2stats();
+        end
     end
 
             
@@ -852,7 +855,7 @@ classdef segmenter < handle
 
         end
 
-        
+
     end
     
 end
