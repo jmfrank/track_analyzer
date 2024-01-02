@@ -306,10 +306,9 @@ classdef segmenter < handle
 
                 case 3
                     
-                    img_size=size(obj.BW);
-
+                    img_size=size
                     for c = 1:length(obj.stats)
-                        p = index_2_vector( img_size, obj.stats(c).PixelIdxList );
+                        p = index_2_vector( size(obj.stats(c).PixelIdxList );
 
                         X = p(:,1);
                         Y = p(:,2);
@@ -462,7 +461,7 @@ classdef segmenter < handle
 
                         %This liar idx
                         idx = liar_list(i);
-                        display(['Watershedding object ',num2str(i), ' out of ', num2str(length(liar_list)) ])
+                        display(['Segmenting object ',num2str(i), ' out of ', num2str(length(liar_list)) ])
                         %Sub_img containing this liar_volume.                         
                         Px = index_2_vector(size(obj.BW), obj.stats(idx).PixelIdxList); 
                         %Pixel ranges. 

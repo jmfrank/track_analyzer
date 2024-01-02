@@ -6,13 +6,10 @@
 %% 1-29-23 update. Need to send frame_obj info specifically from the nuclei-segmentation channel. 
 % frame_obj has two fields, PixelidxList (cell array, as from output of bw
 % improp calculations), and centroids. 
-function [stats, assignment] = local_threshold_cells( img, img_filter, frame_obj, indices, params)
+function [stats] = local_threshold_cells( img, img_filter, frame_obj, indices, params)
 
 %Loop over cells. 
 n_cells = length(indices);
-
-%Figure out if the segmentation was based on the 2D image...
-seg_dim = size(frame_obj.centroids{1},2);
 
 %Dimensions
 [w, l, h] = size(img);
@@ -23,7 +20,7 @@ BW = zeros(size(img));
 for i = 1:n_cells
 
     %Get cell mask. Could be 2D or 3D. 
-    switch seg_dim
+    switch params.seg_dims
         
         case 2
             %2D index. 
@@ -65,25 +62,24 @@ for i = 1:n_cells
     BW( this_cell(sel)) = 1;
 end
 
-%Stats on original image. Filter our single pixels. 
-stats = regionprops(logical(BW), 'Centroid', 'PixelIdxList', 'Area');
+%Collect Stats. 
+stats = table2struct(regionprops3(logical(BW), 'VoxelIdxList','Centroid','SurfaceArea','EigenVectors','EigenValues','Volume'));
+[stats.PixelIdxList] = stats.VoxelIdxList;
+stats = rmfield(stats,'VoxelIdxList');
 
-%Assignment
-spot_centroids = cat(1,stats.Centroid);
-cell_centroids = cat(1,frame_obj.centroids{indices});
-if seg_dim == 2 && length(size(BW))==2
-    D = pdist2(spot_centroids, cell_centroids);
-elseif seg_dim ==2 && length(size(BW)) ==3
-    cell_centroids = [cell_centroids, h/2*ones(size(cell_centroids,1),1)];
-    D = pdist2(spot_centroids, cell_centroids);
-elseif seg_dim ==3 && length(size(BW))==3
-    D = pdist2(spot_centroids, cell_centroids);
+%Assignment. Spot must reside within cell. but which one? Take a single
+%pixel and find intersection to cell pixels? Or make a bwlabel?
+for i = 1:length(stats)
+
+    this_spot_pixel = stats(i).PixelIdxList(1);
+    for j = 1:length(frame_obj.PixelIdxList)
+        U = intersect(this_spot_pixel, frame_obj.PixelIdxList{j});
+        if ~isempty(U)
+            stats(i).assignment = j;
+        end
+    end
 end
 
-[~,assignment] = min(D,[],2);
-    
-A = num2cell(indices(assignment));
-[stats.assignment] = A{:};
 
 end
 

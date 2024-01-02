@@ -126,8 +126,7 @@ end
 nPlanes = metadata.getPixelsSizeZ(0).getValue() *...
     metadata.getPixelsSizeC(0).getValue() *...
     metadata.getPixelsSizeT(0).getValue();
-zctCoord = [size(ip.Results.I, 3) size(ip.Results.I, 4)...
-    size(ip.Results.I, 5)];
+zctCoord = [size(ip.Results.I, 3) size(ip.Results.I, 4) size(ip.Results.I, 5)];
 for index = 1 : nPlanes
     [i, j, k] = ind2sub(zctCoord, index);
     plane = ip.Results.I(:, :, i, j, k)';

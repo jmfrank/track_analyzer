@@ -21,6 +21,7 @@ end
     % dilation_buffer:
     % params.background_distance:
     % params.background_thickness:
+
 % Optional
     % max_p = True -> use max-projection image. must already be made. 
 
@@ -103,28 +104,30 @@ for t = frames
    
     %Loop over detected objects
     if isfield(seg_data.stats,'PixelIdxList')
-        n_cells = length(seg_data.stats);
+        n_objs = length(seg_data.stats);
     else
-        disp(['No cells in frame: ', num2str(t)])
+        disp(['No objects found in frame: ', num2str(t)])
         continue
     end
             
     %Create empty structure for nuclear / cytoplasm calculations
-    data = gen_data_struct( n_cells );
+    data = gen_data_struct( n_objs );
 
     if usejava('desktop')
         f = waitbar(0, 'Starting');
     end
-    %Loop over cells. 
-    for j = 1:n_cells
+
+
+    %Loop over segmented objects. 
+    for j = 1:n_objs
         
         % wait bar. 
         if usejava('desktop')
-            waitbar(j/n_cells, f, sprintf('Progress: %d / %d', j, n_cells));
+            waitbar(j/n_objs, f, sprintf('Progress: %d / %d', j, n_objs));
             pause(0.001);        
         end
 
-        % this is old code---need to re-write. 
+        % 3D vs 2D 
         mask_dims = length(size(bw));
         if mask_dims == 3
             
@@ -132,7 +135,6 @@ for t = frames
             roi_bw_nuc = false(size(BW));
             px = seg_data.stats(j).PixelIdxList;
             roi_bw_nuc(px)=true;
-
             %Get pixel coordinates. 
             [px_Y, px_X, px_Z] = ind2sub([size_y,size_x,size_z],px);
                         
@@ -159,9 +161,8 @@ for t = frames
         
         
         %% Analyze the signal channel. 
-        %Look at sub-region of image containing this cell. Need to exapnd
-        %to include outer boundary. We don't want to look at pixels above
-        %and below blobs for background. 
+        %Look at sub-region of image containing this object. Need to exapnd
+        %to include outer boundary.  
         out_boundary = params.background_distance + params.background_thickness;
         x_min = max(1,min(px_X)-out_boundary);
         x_max = min(size_x,max(px_X)+out_boundary);
@@ -182,7 +183,7 @@ for t = frames
         
         %Tricky part: we need to ignore pixels belonging to other nuclei! 
             %All PixelIdx NOT belonging to cell j. 
-            sel = [1:n_cells] ~= j;
+            sel = [1:n_objs] ~= j;
             % 3D case.
             if size_z > 1
                 ind = cat(1,seg_data.stats(sel).PixelIdxList);
@@ -220,8 +221,6 @@ for t = frames
         bg_vals = sub_img(sub_background_mask);
         data(j).sum_int = sum(vals);
         data(j).mean_int = mean(vals);
-        data(j).cell_id = j;
-        data(j).area = sum(sub_mask(:));
         data(j).local_background = mean(bg_vals);
 %         
 %         figure(1); clf
@@ -235,8 +234,15 @@ for t = frames
        % figure(2); imshow3D(not_this_cell(y_range,x_range,:))
     end
 
-    %Now save the frame_obj. Saving to a channel specific field.
-    frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type) = data;
+    %Now save the frame_obj. Append new variables to existing structure.
+    fnames=fieldnames(data);
+    og_data = frame_obj.(['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type);
+    
+    for i = 1:length(fnames)
+        [og_data.stats.(fnames{i})] = data.(fnames{i});
+    end
+
+    frame_obj.(['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type) = og_data;
     save(seg_files{t},'frame_obj','-append')
     
     

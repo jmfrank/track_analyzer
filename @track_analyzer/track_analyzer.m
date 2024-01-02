@@ -450,7 +450,8 @@ classdef track_analyzer
         function stack = get_stack(obj, t, c)
             
             reader = obj.get_reader();
-            
+            bits=reader.getBitsPerPixel;
+
             %Get the image size of this series. 
             size_x = reader.getSizeX;
             size_y = reader.getSizeY;
@@ -458,9 +459,18 @@ classdef track_analyzer
             
             %Get the images for this z-stack according to bioformats reader
             stack = zeros(size_y,size_x,Z);
+            switch bits
+                case 16
+                    stack = uint16(stack);
+                case 12
+                    error('Need to add 12-bit case scenario')
+                case 8
+                    stack = uint8(stack);
+            end
+
             for i = 1:Z
                 this_plane = reader.getIndex(i-1,c-1,t-1)+1;
-                stack(:,:,i) = bfGetPlane(reader,this_plane);
+                stack(:,:,i) = bfGetPlane(reader, this_plane);
             end
         end
 
@@ -473,7 +483,7 @@ classdef track_analyzer
             obj.save;
         end
    
-        % Rebuild a BW from pixelIdxList (cell array) and image size. 
+        % Rebuild a BW from pixelIdxList (cell array). 
         function BW = rebuild_BW(obj, pixel_list)
            
             if iscell(pixel_list)

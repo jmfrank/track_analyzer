@@ -32,20 +32,16 @@ if isfield(info,'loc')
     loc = info.loc;
 end
 
+% Find the appropriate data directory. 
+for i = 1:size(data,2)
+    this_dir=data{i}{3};
+    if isempty(this_dir)
+        continue
+    end
 
-%Get experiment set base dir
-if strcmp(loc , 'Work')
-    tmp = cellfun(@(x) x(3), data(1));
-elseif strcmp( loc , 'Home')
-    tmp = cellfun(@(x) x(4), data(1));
-elseif strcmp( loc, 'local')
-    tmp = cellfun(@(x) x(5), data(1));
-elseif strcmp( loc, 'guan')
-    tmp = cellfun(@(x) x(6), data(1));
-elseif strcmp( loc, 'guan_local')
-    tmp = cellfun(@(x) x(6), data(2));
-else
-    disp('Location not defined');
+    if exist(this_dir,'dir')
+        base_dir=this_dir;
+    end
 end
 
 %now fill in extra columns of data if there's a mis-match at the end. 
@@ -56,7 +52,6 @@ for i = 1:length(bad_columns)
     data{bad_columns(i)}{max_L} = {''};
 end
 
-base_dir = tmp{1};
 %Get specified experiment info
 all_info = cellfun(@(x) x(info.exp_id), data);
 

@@ -37,7 +37,7 @@ switch seg_type
         out_params.merge_dist=20;
         out_params.WaterShedMaxVol = 3000;
         out_params.img_scale=1;
-        
+        out_params.max_sphericity=0.34;
         
     case 'spots'
         out_params.smooth_sigma=[3,3,1];

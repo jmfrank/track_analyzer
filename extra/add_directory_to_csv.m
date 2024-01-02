@@ -4,9 +4,19 @@ clear
 
 loc = 'Work'
 
-%csv_file = '/home/matt/Dropbox/TEAD_paper/data/tead_experiments.csv'
-csv_file = '/Users/mf2741/Dropbox/TEAD_paper/stowers.csv';
-csv_file = '/home/matt/Dropbox/TEAD_paper/stanford_experiments.csv'
+
+csv_files{1} = '/Users/mf2741/Dropbox/TEAD_paper/stowers.csv';
+csv_files{2} = '/home/matt/Dropbox/TEAD_paper/stanford_experiments.csv';
+csv_files{3}  = '/Users/matt/Dropbox/TEAD_paper/stanford_experiments.csv';
+
+for i = 1:length(csv_files)
+
+    if exist(csv_files{i},'file')
+        csv_file= csv_files{i}
+    end
+end
+
+
 %Read csv file
 [fid message ] = fopen(strtrim(csv_file));
 data = textscan(fid,'%s %s %s %s %s %s %s',800,'delimiter',',');

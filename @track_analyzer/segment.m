@@ -95,7 +95,9 @@ disp(['Started frame: ',num2str(t)]);
     end
 
 
-    % Get mask, and initialize segmenter object. 
+    % Get mask, and initialize segmenter object. Input to segmenter must
+    % have the final scaling. However, we have a function to reverse
+    % scaling for output. 
     if obj.exp_info.steps.(CHANNEL_name).mask_channel>0
         % Get Mask image. 
         F = obj.get_frame_files;
@@ -104,26 +106,25 @@ disp(['Started frame: ',num2str(t)]);
         % reduce size if needed: 
         if img_scale > 1
 
-            % Make a new BW from original mask data. 
-            bw = obj.rebuild_BW(frame_obj.(msk_channel_str).cells.PixelIdxList);
-            newBW=imresize3(bw, 1/img_scale);
-            new_stats=regionprops(newBW,'Centroid','PixelIdxList');            % add stats to frame_obj. 
+            % Make a new BW from original mask data. For now, masks are
+            % always cells. 
+            og_mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
+            og_bw = obj.rebuild_BW(og_mask);
+            newBW=imresize3(og_bw, 1/img_scale);
+            new_stats=regionprops(newBW,'PixelIdxList');
             stats=[];
             for i = 1:length(new_stats)       
                 stats.PixelIdxList{i} = new_stats(i).PixelIdxList;
-                stats.centroids{i}    = new_stats(i).Centroid;
             end
       
             mask = stats.PixelIdxList;
-            mask_centroids=stats.centroids;
         else
             mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
-            mask_centroids = frame_obj.(msk_channel_str).cells.centroids;
         end
 
-        S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, mask, mask_centroids);
+        S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, seg_type, mask);
     else
-        S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t);
+        S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, seg_type);
     end
     
     % Loop over steps. params from obj.obj.exp_info. 
@@ -138,6 +139,16 @@ disp(['Started frame: ',num2str(t)]);
     if img_scale > 1
         S.reverse_scaling(original_size);
     end
+    display('reverse_scaled')
+
+    % Assign final objects to cell masks. First we must add back the
+    % original cell mask prior to scaling. 
+    if strcmp(seg_type, 'foci') | strcmp(seg_type, 'spots')
+        S.add_mask(og_mask) % cell array of masks. 
+        S.assign_objects_2_cells();
+    end
+
+
     %% Output. 
     % Create frame_obj and save. 
     seg_channel_name=strcat('seg_',CHANNEL_name);
@@ -147,34 +158,38 @@ disp(['Started frame: ',num2str(t)]);
     switch seg_type
         
         case 'cells'
-            
-            borders = border_frame( size(S.BW) );
 
+            frame_obj.(seg_channel_name).cells.touches_border = false([1,length(S.stats)]);
+
+          
+            borders = border_frame( size(S.BW) );
+            borders_idx = find(borders>0);
             % add stats to frame_obj. 
             for i = 1:length(S.stats)       
                 frame_obj.(seg_channel_name).cells.PixelIdxList{i} = S.stats(i).PixelIdxList;
-                frame_obj.(seg_channel_name).cells.centroids{i}    = S.stats(i).Centroid;
-
-                this_cell = false(size(S.BW));
-                this_cell(S.stats(i).PixelIdxList) = 1;
-                frame_obj.(seg_channel_name).cells.touches_border(i) = any(this_cell.*borders,'all');
+                %do any pixels of this cell overlap with border pixels. 
+                overlap = intersect(borders_idx(1),frame_obj.(seg_channel_name).cells.PixelIdxList{i});
+                if ~isempty(overlap)
+                    frame_obj.(seg_channel_name).cells.touches_border(i) = 1;
+                end
             end
-
+            display('identified border touching objects')
             %Add final binarized image to frame_obj for save keeping
             %frame_obj.(seg_channel_name).cells.BW = S.BW;
 
-            %Trace boundaries.
-            cBW = max(S.BW, [], 3);
-            C = bwboundaries(cBW);
-            if ~isempty(C)
-                C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
-                c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
-                %Match centroids. 
-                fobj_ctrs = cat(1,frame_obj.(seg_channel_name).cells.centroids{:});
-                D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
-                [~,idx] = min(D);
-                frame_obj.(seg_channel_name).cells.contours=C( idx );
-            end
+            % %Trace boundaries.
+            % cBW = max(S.BW, [], 3);
+            % C = bwboundaries(cBW);
+            % if ~isempty(C)
+            %     C = cellfun(@(x) [smooth(x(:,2)),smooth(x(:,1))],C,'uniformoutput',0);
+            %     c_ctr = cellfun(@(x) [mean(x(:,1)),mean(x(:,2))],C,'uniformoutput',0);
+            %     %Match centroids. 
+            %     fobj_ctrs = cat(1,frame_obj.(seg_channel_name).cells.centroids{:});
+            %     D = pdist2(cat(1,c_ctr{:}),fobj_ctrs(:,1:2));
+            %     [~,idx] = min(D);
+            %     frame_obj.(seg_channel_name).cells.contours=C( idx );
+            % end
+            
 
         case 'foci'
         
@@ -184,6 +199,7 @@ disp(['Started frame: ',num2str(t)]);
             frame_obj.(seg_channel_name).foci.stats =S.stats;
         
         case 'spots'
+
             frame_obj.(seg_channel_name).spots.stats=S.stats;
     end
        
