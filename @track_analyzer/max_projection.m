@@ -37,6 +37,10 @@ for i = 1:length(IMG_files)
 
     series = 1;
     BITS = reader.getBitsPerPixel;
+    % Zeros doesn't support 12 bit. 
+    if BITS==12
+        BITS=16;
+    end
     IMG = obj.exp_info.img_file;
     %Get the image size of this series. 
     size_x = reader.getSizeX;

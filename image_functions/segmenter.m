@@ -226,10 +226,11 @@ classdef segmenter < handle
             switch length(img_size)
                 
                 case 2
-                    [xq,yq] = meshgrid(1:img_size(1),1:img_size(2));
+                    reduction=8; % factor to reduce xy sampling. 
+                    [xq,yq] = meshgrid(1:reduction:img_size(2),1:reduction:img_size(1));
                     F = scatteredInterpolant( C(:,1),C(:,2),ints, 'natural','nearest');
                     vq = F(xq,yq);
-
+                    vq = imresize(vq,img_size);
                 case 3
                     % This goes way faster by downsampling xy?
                     reduction=16; % factor to reduce xy sampling.                 
@@ -266,14 +267,16 @@ classdef segmenter < handle
             new_BW= zeros(size(obj.BW));
 
             dims=length(size(obj.BW));
+            img_size=size(obj.BW);
 
             switch dims
 
                 case 2
 
                     for c = 1:length(obj.stats)
-                        X = obj.stats(c).PixelList(:,1);
-                        Y = obj.stats(c).PixelList(:,2);
+                        p = index_2_vector( img_size, obj.stats(c).PixelIdxList );
+                        X = p(:,1);
+                        Y = p(:,2);
 
                         x_range = [min(X):max(X)];
                         y_range = [min(Y):max(Y)];
@@ -306,7 +309,6 @@ classdef segmenter < handle
 
                 case 3
                     
-                    img_size=size(obj.BW);
 
                     for c = 1:length(obj.stats)
                         p = index_2_vector( img_size, obj.stats(c).PixelIdxList );
@@ -428,7 +430,7 @@ classdef segmenter < handle
                     %Skip first entry. 
                     stats_fused = stats_fused(2:end);
                     %ignore empty objects? 
-                    sel = [stats_fused.Area]==0;
+                    sel = [stats_fused.Volume]==0;
                     stats_fused=stats_fused(~sel);
 
                     %Now get rid of original regions that were fused. 
@@ -817,7 +819,7 @@ classdef segmenter < handle
             for i = 1:N
             
                 %Get cell mask. Could be 2D or 3D. 
-                switch obj.params.seg_dims
+                switch length(size(obj.img))
                     
                     case 2
                         %2D index. 
@@ -895,7 +897,7 @@ classdef segmenter < handle
 
             % build a mask binary. Use size of BW because that can be
             % re-scaled. 
-            obj.mask = false(size(obj.BW));
+            obj.mask = false(size(obj.img));
             obj.mask( cat(1, msk_pxs{:}) ) = 1;
         end
 
@@ -928,6 +930,17 @@ classdef segmenter < handle
 
             end
 
+        end
+
+        % erode the masks. 
+        function erode_mask(obj)
+            % Erosion strel
+            SE = strel('disk',obj.params.mask_erosion_size);
+            mask = imerode(obj.mask,SE);
+            obj.mask=mask;
+            stats=regionprops(newBW,'Centroid','PixelIdxList'); 
+            obj.msk_pxs = stats.PixelIdxList;
+            
         end
     end
 

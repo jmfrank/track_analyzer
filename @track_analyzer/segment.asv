@@ -144,11 +144,7 @@ disp(['Started frame: ',num2str(t)]);
     % Assign final objects to cell masks. First we must add back the
     % original cell mask prior to scaling. 
     if strcmp(seg_type, 'foci') | strcmp(seg_type, 'spots')
-        if img_scale > 1
-            S.add_mask(og_mask) % cell array of masks. 
-        else
-            S.add_mask(mask);
-        end
+        S.add_mask(og_mask) % cell array of masks. 
         S.assign_objects_2_cells();
     end
 

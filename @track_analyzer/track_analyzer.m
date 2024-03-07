@@ -496,6 +496,13 @@ classdef track_analyzer
             BW(pixel_list) = 1;
         end
        
+        % remove existing parameters and segmentation steps. 
+        function obj=reset_seg(obj)
+            
+            obj.exp_info.steps=[];
+            obj.exp_info.params=[];
+            obj.save();
+        end
     end
     
 end

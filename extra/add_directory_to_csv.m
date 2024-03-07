@@ -8,13 +8,8 @@ loc = 'Work'
 csv_files{1} = '/Users/mf2741/Dropbox/TEAD_paper/stowers.csv';
 csv_files{2} = '/home/matt/Dropbox/TEAD_paper/stanford_experiments.csv';
 csv_files{3}  = '/Users/matt/Dropbox/TEAD_paper/stanford_experiments.csv';
-
-for i = 1:length(csv_files)
-
-    if exist(csv_files{i},'file')
-        csv_file= csv_files{i}
-    end
-end
+csv_files{4} =  '/home/matt/Dropbox/TEAD_paper/stowers.csv';
+csv_file=csv_files{4}
 
 
 %Read csv file
@@ -36,7 +31,7 @@ selpath = uigetdir('/media/matt/internal_8TB/data/microscopy/stanford/');
 
 % Loop through all subdirectories, if any. Dir is recursive using **. Just
 % limit to ns2 file for now. 
-file_types={'.tif','.ns2','.czi'}; %add more as necessary
+file_types={'.tif','.nd2','.czi'}; %add more as necessary
 
 all_files = get_files_of_type(selpath,file_types);
 all_files = all_files(~[all_files.isdir]);
