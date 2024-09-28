@@ -40,13 +40,17 @@ if nargin < 2
             break
         end
     end
-    if isempty(seg_info.channel)
-        errordlg('No cell segmentation channel found')
-    end
+
 elseif nargin < 3
     debug = 0;
 end
-        
+       
+% Write out which channel is being analyzed. 
+disp(['Using channel ', num2str(seg_info.channel)])
+if isempty(seg_info.channel)
+    errordlg('No cell segmentation channel found')
+end
+
 %Now run loops. Params is passed around in case things change from user. 
 disp(['Segmenting ',num2str(T),' frames.'])
 for t = 1:T
@@ -98,28 +102,36 @@ disp(['Started frame: ',num2str(t)]);
     % Get mask, and initialize segmenter object. Input to segmenter must
     % have the final scaling. However, we have a function to reverse
     % scaling for output. 
-    if obj.exp_info.steps.(CHANNEL_name).mask_channel>0
+    if any( strcmp('add_mask',{obj.exp_info.steps.(CHANNEL_name).(seg_type)(:).type}) )
         % Get Mask image. 
         F = obj.get_frame_files;
         load(F{1})
-        msk_channel_str = ['seg_channel_',pad(num2str(obj.exp_info.steps.(CHANNEL_name).mask_channel),2,'left','0')];
+        % get mask channel from steps. 
+        idx = find(strcmp('add_mask',{obj.exp_info.steps.(CHANNEL_name).(seg_type)(:).type}),1); 
+        mask_channel = obj.exp_info.steps.(CHANNEL_name).(seg_type)(idx).value;    
+        msk_channel_str = ['seg_channel_',pad(num2str(mask_channel),2,'left','0')];
         % reduce size if needed: 
         if img_scale > 1
 
             % Make a new BW from original mask data. For now, masks are
             % always cells. 
-            og_mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
+            og_mask = cat(1,frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
             og_bw = obj.rebuild_BW(og_mask);
             newBW=imresize3(og_bw, 1/img_scale);
-            new_stats=regionprops(newBW,'PixelIdxList');
-            stats=[];
-            for i = 1:length(new_stats)       
-                stats.PixelIdxList{i} = new_stats(i).PixelIdxList;
-            end
+            mask_stats=regionprops(newBW,'PixelIdxList');
       
-            mask = stats.PixelIdxList;
         else
-            mask = frame_obj.(msk_channel_str).cells.PixelIdxList;
+            n_cells = length(frame_obj.seg_channel_02.cells.stats); 
+            mask_stats(n_cells,1) = struct('PixelIdxList',[]);
+            [mask_stats.PixelIdxList] = deal(frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
+            %mask_stats = frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
+        end
+    
+        % send to segmenter. convert mask stats to a cell array for use
+        % with segmenter. 
+        mask = {};
+        for i = 1:length(mask_stats)
+            mask{i} = mask_stats(i).PixelIdxList;
         end
 
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, seg_type, mask);
@@ -129,6 +141,12 @@ disp(['Started frame: ',num2str(t)]);
     
     % Loop over steps. params from obj.obj.exp_info. 
     seg_steps = obj.exp_info.steps.(CHANNEL_name).(seg_type);
+    
+    % ignore 'add mask' step. 
+    ignore = strcmp('add_mask',{obj.exp_info.steps.(CHANNEL_name).(seg_type)(:).type});
+    seg_steps = seg_steps(~ignore);
+    
+    % loop over steps. 
     for i = 1:length(seg_steps)
 
         disp(seg_steps(i).type);
@@ -138,13 +156,15 @@ disp(['Started frame: ',num2str(t)]);
     % Compensate if original image was re-scaled for speed. 
     if img_scale > 1
         S.reverse_scaling(original_size);
+        display('reverse_scaled')
     end
-    display('reverse_scaled')
+    
 
     % Assign final objects to cell masks. First we must add back the
     % original cell mask prior to scaling. 
     if strcmp(seg_type, 'foci') | strcmp(seg_type, 'spots')
         if img_scale > 1
+            error('need to update')
             S.add_mask(og_mask) % cell array of masks. 
         else
             S.add_mask(mask);
@@ -168,15 +188,20 @@ disp(['Started frame: ',num2str(t)]);
           
             borders = border_frame( size(S.BW) );
             borders_idx = find(borders>0);
-            % add stats to frame_obj. 
+            
+            % saving stats object instead of re-writing pixelidxlist? 
+            frame_obj.(seg_channel_name).cells.stats = S.stats;
+
             for i = 1:length(S.stats)       
-                frame_obj.(seg_channel_name).cells.PixelIdxList{i} = S.stats(i).PixelIdxList;
+                
+                %frame_obj.(seg_channel_name).cells.PixelIdxList{i} = S.stats(i).PixelIdxList;
                 %do any pixels of this cell overlap with border pixels. 
-                overlap = intersect(borders_idx(1),frame_obj.(seg_channel_name).cells.PixelIdxList{i});
+                overlap = intersect(borders_idx,frame_obj.(seg_channel_name).cells.stats(i).PixelIdxList);
                 if ~isempty(overlap)
                     frame_obj.(seg_channel_name).cells.touches_border(i) = 1;
                 end
             end
+
             display('identified border touching objects')
             %Add final binarized image to frame_obj for save keeping
             %frame_obj.(seg_channel_name).cells.BW = S.BW;
@@ -198,7 +223,7 @@ disp(['Started frame: ',num2str(t)]);
         case 'foci'
         
             %Add final binarized image to frame_obj for save keeping
-            frame_obj.(seg_channel_name).foci.BW = S.BW;
+            %frame_obj.(seg_channel_name).foci.BW = S.BW;
             %Add sub-nuclear segmented nucleoli. 
             frame_obj.(seg_channel_name).foci.stats =S.stats;
         

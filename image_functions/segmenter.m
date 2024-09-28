@@ -51,7 +51,7 @@ classdef segmenter < handle
             obj.params=params;
             obj.t=t;
             obj.seg_type=seg_type;
-
+            
             %Default mask is blank. 
             obj.mask = false(size(obj.img));            
             if nargin > 5 % need to provide msk_pxs. 
@@ -64,26 +64,20 @@ classdef segmenter < handle
             
             % Check bit-depth. 
             max_bits = max(obj.img(:));
-            if max_bits <= 256
-                image_bits=8;
-            elseif max_bits <= 4096
-                image_bits=12;
-            elseif max_bits <= 65536
-                image_bits=16;
-            end
             
-            if image_bits==8
+            if obj.image_bits==8
                 if ~strcmp(class(obj.img),'uint8')
                     obj.img = uint8(obj.img);
                 end
                 tmp = adaptthresh(obj.img,obj.params.MeanFilterSensitivity,'NeighborhoodSize',obj.params.MeanFilterNeighborhood);
-            elseif image_bits==12
+            elseif obj.image_bits==12
 
-                %Rescale to 16 bit? 
+                %Rescale to 16 bit because matlab doesn't have 12-bit
+                %object. 
                 obj.img = uint16(obj.img* (2^16-1)/(2^12-1));
                 tmp = adaptthresh(obj.img,obj.params.MeanFilterSensitivity,'NeighborhoodSize',obj.params.MeanFilterNeighborhood);
 
-            elseif image_bits==16
+            elseif obj.image_bits==16
                 if ~strcmp(class(obj.img),'uint16')
                     obj.img = uint16(obj.img);
                 end
@@ -647,12 +641,9 @@ classdef segmenter < handle
         % Local segmentation within masked objects. 
         function sub_region_segmentation(obj)
            
-            obj.stats = struct('cell_id',[],'Area',[],'PixelIdxList',[],'MeanIntensity',[],'mean_bg',[], ...
-                        'snr',[], 'sum_int',[],'Centroid',[]);
+            obj.stats = struct('cell_id',[],'Area',[],'PixelIdxList',[], 'Centroid',[]);
             %counter. 
             c=0;
-
-            obj.params
             
             % Erosion strel
             SE = strel('disk',10); %< why is this here???
@@ -701,7 +692,7 @@ classdef segmenter < handle
                 bw = logical(sub_img >= thresh_val);
 
                 % Now generate regionprops for this nucleus. 
-                sub_props = regionprops(bw, sub_img,'PixelIdxList','MeanIntensity','Area','Centroid');
+                sub_props = regionprops(bw, sub_img,'PixelIdxList','Area','Centroid');
                 
                 % Filter sizes. 
                 areas = [sub_props.Area];
@@ -717,13 +708,13 @@ classdef segmenter < handle
                     sub_props(j).cell_id= i;
                     
                     % add background intensity. 
-                    sub_props(j).mean_bg = int_mean;
+                    %sub_props(j).mean_bg = int_mean;
                     
                     % Calculate sum_intensity above background and SNR. 
-                    sum_int = sum( sub_img( sub_props(j).PixelIdxList ) - int_mean );
-                    snr = (mean( sub_img( sub_props(j).PixelIdxList ) ) - int_mean )/ int_std;
-                    sub_props(j).sum_int = sum_int;
-                    sub_props(j).snr     = snr;
+                    %sum_int = sum( sub_img( sub_props(j).PixelIdxList ) - int_mean );
+                    %snr = (mean( sub_img( sub_props(j).PixelIdxList ) ) - int_mean )/ int_std;
+                    %sub_props(j).sum_int = sum_int;
+                    %sub_props(j).snr     = snr;
                     
                     % Now convert index to large image. 
                     sub_props(j).PixelIdxList = sub_2_large_ind( sub_props(j).PixelIdxList, ranges, size(sub_img), size(obj.img));
@@ -891,14 +882,15 @@ classdef segmenter < handle
         end
 
         function add_mask(obj, msk_pxs)
-
-            obj.msk_pxs       = msk_pxs;
+            % If msk
+            obj.msk_pxs = msk_pxs;
             % obj.msk_centroids = msk_centroids; don't need anymore
 
             % build a mask binary. Use size of BW because that can be
             % re-scaled. 
             obj.mask = false(size(obj.img));
             obj.mask( cat(1, msk_pxs{:}) ) = 1;
+            
         end
 
         % Resize image based on [y,x,z] dimensions
@@ -939,6 +931,7 @@ classdef segmenter < handle
             mask = imerode(obj.mask,SE);
             obj.mask=mask;
             stats=regionprops(newBW,'Centroid','PixelIdxList'); 
+            error('Need to fix this...')
             obj.msk_pxs = stats.PixelIdxList;
             
         end

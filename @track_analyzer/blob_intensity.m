@@ -236,13 +236,20 @@ for t = frames
 
     %Now save the frame_obj. Append new variables to existing structure.
     fnames=fieldnames(data);
-    og_data = frame_obj.(['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type);
-    
-    for i = 1:length(fnames)
-        [og_data.stats.(fnames{i})] = data.(fnames{i});
-    end
 
-    frame_obj.(['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type) = og_data;
+    % check if the segmented channel has data saved already
+    seg_channel = ['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')];
+    if isfield(frame_obj, seg_channel)
+        og_data = frame_obj.(seg_channel).(params.seg_type);
+        
+        for i = 1:length(fnames)
+            [og_data.stats.(fnames{i})] = data.(fnames{i});
+        end
+        frame_obj.(['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.seg_type) = og_data;
+    else
+        % Make a new field in frame_obj for this channel. 
+        frame_obj.(seg_channel).(params.seg_type).stats = data;
+    end
     save(seg_files{t},'frame_obj','-append')
     
     
@@ -267,7 +274,7 @@ end
 function data = gen_data_struct( N )
 
 %Fields
-data(N) = struct('sum_int',[],'mean_int',[],'cell_id',[],'area',[],'local_background',[]);
+data(N) = struct('sum_int',[],'mean_int',[],'cell_id',[],'local_background',[]);
 
 end
 %% DEBUGGING code for plotting contours. 

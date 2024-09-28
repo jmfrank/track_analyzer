@@ -483,12 +483,13 @@ classdef track_analyzer
             obj.save;
         end
    
-        % Rebuild a BW from pixelIdxList (cell array). 
+        % Rebuild a BW from pixelIdxList (cell array or single vector of all positive pixels). 
         function BW = rebuild_BW(obj, pixel_list)
            
             if iscell(pixel_list)
                 pixel_list = cat(1,pixel_list{:});
             end
+             
             if ~isvector(pixel_list)
                 error('Pixel list is wrong type')
             end
@@ -503,6 +504,7 @@ classdef track_analyzer
             obj.exp_info.params=[];
             obj.save();
         end
+
     end
     
 end

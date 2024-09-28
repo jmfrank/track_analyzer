@@ -1,6 +1,5 @@
 function add_directory_to_csv()
 %% Adding a directory of files to CSV
-clear
 
 loc = 'Work'
 
@@ -9,12 +8,12 @@ csv_files{1} = '/Users/mf2741/Dropbox/TEAD_paper/stowers.csv';
 csv_files{2} = '/home/matt/Dropbox/TEAD_paper/stanford_experiments.csv';
 csv_files{3}  = '/Users/matt/Dropbox/TEAD_paper/stanford_experiments.csv';
 csv_files{4} =  '/home/matt/Dropbox/TEAD_paper/stowers.csv';
-csv_file=csv_files{4}
+csv_file=csv_files{2}
 
 
 %Read csv file
 [fid message ] = fopen(strtrim(csv_file));
-data = textscan(fid,'%s %s %s %s %s %s %s',800,'delimiter',',');
+data = textscan(fid,'%s %s',800,'delimiter',',');
 fclose(fid);
 start_row = size(data{1},1)+1;
 
@@ -35,7 +34,7 @@ file_types={'.tif','.nd2','.czi'}; %add more as necessary
 
 all_files = get_files_of_type(selpath,file_types);
 all_files = all_files(~[all_files.isdir]);
-
+all_files
 %Counter
 c=1;
 

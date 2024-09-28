@@ -2,6 +2,11 @@
 function obj = gen_info_bioformats(obj, pixel_size, time_interval)
 
 
+if nargin < 2
+    pixel_size=NaN;
+    time_interval=NaN;
+end
+
 %Creater reader. Try 
 reader = bfGetReader(obj.exp_info.img_file);
 omeMeta = reader.getMetadataStore();
