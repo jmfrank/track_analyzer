@@ -121,7 +121,7 @@ disp(['Started frame: ',num2str(t)]);
             mask_stats=regionprops(newBW,'PixelIdxList');
       
         else
-            n_cells = length(frame_obj.seg_channel_02.cells.stats); 
+            n_cells = length(frame_obj.(msk_channel_str).cells.stats); 
             mask_stats(n_cells,1) = struct('PixelIdxList',[]);
             [mask_stats.PixelIdxList] = deal(frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
             %mask_stats = frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
