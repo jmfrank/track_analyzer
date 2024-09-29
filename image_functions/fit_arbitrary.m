@@ -1,7 +1,8 @@
 %Pass a 3D frame and find spots. Uses the stats object pixels to query the
 %local background to give blob measurements. 
 
-function fit = fit_this_frame_arbitrary( img, stats, BW, params )
+% BW = cell nuclelus mask. 
+function fit = fit_arbitrary( img, stats, BW, params )
 
 debug = 0;
 fit_dims = length(size(img));
@@ -151,6 +152,8 @@ switch fit_dims
         bounds=params.bg_mask;
         B = strel('sphere',bounds(2));
         A = strel('sphere',bounds(1));
+        %%%% Future use  STREL('ball',R,H,N) 
+
         bad_list=[];
         for i = 1:N
 
@@ -184,7 +187,7 @@ switch fit_dims
 
             % Now multiply by cell mask.
             this_bg = logical(this_bg.*bg_sub_stack);
-
+            
             % Calculate mean bg intensityies.
             bg_int = img_sub_stack(this_bg);
             mean_bg = mean( bg_int );

@@ -36,6 +36,8 @@ classdef segmenter < handle
         filtered  
 
         seg_type
+
+        spot_fits
         
     end
     
@@ -788,13 +790,15 @@ classdef segmenter < handle
         % thresholding spots. 
         function spot_simple_threshold(obj)
                     
-            obj.BW = obj.filtered >= obj.params.simple_threshold;
+            % Apply mask and threshold at once. 
 
-            % Apply mask. 
-            obj.BW = obj.BW.*obj.mask;
+            obj.BW = obj.filtered.*obj.mask >= obj.params.simple_threshold;
 
             %Stats on original image. Filter our single pixels. 
             obj.bw2stats();
+
+            obj.assign_objects_2_cells()
+
 
         end
         
@@ -935,6 +939,29 @@ classdef segmenter < handle
             obj.msk_pxs = stats.PixelIdxList;
             
         end
+
+        % spot fitting parent function. calls sub-functions to fit image
+        % data. 
+        % 
+        % Params needed:
+        %params.bg_mask
+        %params.search_radius
+
+        function spot_fitting(obj)
+            
+
+            switch obj.params.fit_type
+
+                case 'arbitary'
+                    % raw image, object stats, binary background mask, fit params. 
+                    obj.spot_fits = fit_arbitrary(obj.img, obj.stats, obj.mask, obj.params );
+
+                case 'gaussian'
+
+            end
+
+        end
+
     end
 
             
