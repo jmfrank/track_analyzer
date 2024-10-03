@@ -1,21 +1,17 @@
 %Perform spot detection in cell nuclei, 2D or 3D. Used for nascent transcription spots seen using FISH staining.
 %Use spot_tracking_LIVE for live-cell imaging. 
 
-function obj = spot_tracking(obj, seg_info)
+function obj = spot_tracking(obj, seg_info, params)
 
 
 
 % Image channel to segment
-channel_str = ['channel_',pad(num2str(seg_info.channel),2,'left','0')];
-
-params = obj.exp_info.params.(channel_str).spots;
-steps  = obj.exp_info.steps.(channel_str).spots;
+channel_str = ['channel_',pad(num2str(seg_info.img_channel),2,'left','0')];
 
 
-
-
-% Image channel that contains cell masks. 
-cell_channel_str = ['seg_channel_',pad(num2str(obj.exp_info.steps.(channel_str).mask_channel),2,'left','0')];
+% Image channel that contains cell masks. #### NEED TO DEAL with instance
+% of no mask....
+cell_channel_str = ['seg_channel_',pad(num2str(seg_info.exclusion_mask_channel),2,'left','0')];
 
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
@@ -32,13 +28,12 @@ end
 %Get segmentation files 
 seg_files = obj.get_frame_files;
 
-%LSM time series goes Z first, then time. For each time point, load the
-%Z-stack at time t, then max project and segment. 
 for t = frames
 
     
     %Get the images for this z-stack according to bioformats reader
-    img = get_stack(reader,t,seg_info.channel);
+    disp(['Using channel ',num2str(seg_info.img_channel)])
+    img = get_stack(reader,t,seg_info.img_channel);
     
     %Check segment dimensions. 
     if params.seg_dims == 2
@@ -47,26 +42,20 @@ for t = frames
 
     %Load cell data and collect centroids. 
     load(seg_files{t}, 'frame_obj');
-    
+    % retrieve stats
+    seg_channel_name = ['seg_channel_',pad(num2str(seg_info.spot_mask_channel),2,'left','0')];
+    stats = frame_obj.(seg_channel_name).(seg_info.seg_type).stats;
+    % If we have a mask, get it from frame_obj
+    msk_stats = frame_obj.(cell_channel_str).(seg_info.exclusion_mask_type).stats;
+    msk_BW = uint8(zeros(size(img)));
+    msk_BW = obj.rebuild_BW( cat(1,msk_stats.PixelIdxList) );
+
     %IMPORTANT: we often deal with stitched images. So we should fill in
     %zero-valued pixels. 
     %img = fill_edges(img);
-    
-    % intialize segmenter. 
-    S = spot_segmenter(img, frame_obj.(cell_channel_str), params);
-    seg_steps = obj.exp_info.steps.(channel_str).spots;
-    for i = 1:length(seg_steps)
         
-        disp(seg_steps(i).type);
-        S.(seg_steps(i).type);
-        
-    end
-    
-    stats = S.stats;
-    
-    
     %Decide which fitting processes to perform
-    switch obj.exp_info.steps.(channel_str).Fit
+    switch seg_info.fit_type
         
         %3d gaussian. 
         case '3D'
@@ -82,14 +71,14 @@ for t = frames
             %Use maximum projection image or guassial filtered image
             fit = fit_this_frame_mip( mip, stats, frame_obj, params, step );
     
-        case 'Centroid'
+        case 'centroid'
             
             %Simple centroid fitting scheme
             fit = fit_this_frame_centroid( img, stats, params);
         
-        case 'Arbitrary'
+        case 'arbitrary'
             
-            fit = fit_this_frame_arbitrary( img, stats, frame_obj.(cell_channel_str).BW, params);
+            fit = fit_arbitrary( img, stats, msk_BW, params);
     end
     
     %Append fitting results to frame_obj

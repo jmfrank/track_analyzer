@@ -8,7 +8,10 @@ if nargin < 2
 end
 
 %Creater reader. Try 
-reader = bfGetReader(obj.exp_info.img_file);
+reader = loci.formats.Memoizer(bfGetReader(),0);
+reader.setId(obj.exp_info.img_file);
+
+%reader = bfGetReader(obj.exp_info.img_file);
 omeMeta = reader.getMetadataStore();
 
 
@@ -60,6 +63,7 @@ catch
     obj.exp_info.time_series = [0:obj.exp_info.t_frames-1]*time_interval;
 end
 
+reader.close();
 
 end
 

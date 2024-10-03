@@ -74,7 +74,6 @@ switch fit_dims
             % Calculate mean bg intensityies.
             bg_int = img_sub_stack(this_bg);
             mean_bg = mean( bg_int );
-            bg_std  = std(bg_int);
 
             % Create threshold for foreground pixels based on bg+ std*X. This
             % allows more accurate measurement of blob wrt local background

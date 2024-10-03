@@ -10,6 +10,19 @@ if ~isfield( info, 'make_new')
     info.make_new=0;
 end
 
+
+% Add bioformats javapath. 
+class_path = which("track_analyzer");
+S = split(class_path,'/');
+bf_path = fullfile('/',S{1:end-2},'image_functions','bfmatlab','bioformats_package.jar');
+javapath = javaclasspath('-all');   % Get the Java classpath
+
+if all(cellfun(@isempty, strfind(javapath, 'bioformats_package.jar')))  %#ok<*STRCLFH>;
+    javaaddpath(bf_path, '-end');
+    disp(['Adding "' bf_path '" to Matlab java path']);
+end
+
+
 %Check if experiment already exists. 
 if ~exist(exp_info.track_file,'file') | info.make_new
     track_obj=track_analyzer(exp_info);

@@ -16,7 +16,7 @@ function obj = segment(obj, seg_info, debug)
 %% Pre-processing using bio-formats. 
 
 %Generate reader. FOR NOW, assume we are looking in series 1. 
-reader = bfGetReader(obj.exp_info.img_file);
+reader = get_memo_reader(obj.exp_info.img_file);
 series = 1; % Need to further define if multiple series in bf format. 
 
 %Get the image size of this series. 
@@ -129,11 +129,8 @@ disp(['Started frame: ',num2str(t)]);
     
         % send to segmenter. convert mask stats to a cell array for use
         % with segmenter. 
-        mask = {};
-        for i = 1:length(mask_stats)
-            mask{i} = mask_stats(i).PixelIdxList;
-        end
-
+        mask = list_2_cell_array( mask_stats, 'PixelIdxList');
+        
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, seg_type, mask);
     else
         S = segmenter(I, image_bits, obj.exp_info.params.(CHANNEL_name).(seg_type), t, seg_type);
@@ -164,8 +161,9 @@ disp(['Started frame: ',num2str(t)]);
     % original cell mask prior to scaling. 
     if strcmp(seg_type, 'foci') | strcmp(seg_type, 'spots')
         if img_scale > 1
-            error('need to update')
-            S.add_mask(og_mask) % cell array of masks. 
+            % cell array of masks. 
+            original_mask = list_2_cell_array( frame_obj.(msk_channel_str).cells.stats, 'PixelIdxList');
+            S.add_mask(original_mask) 
         else
             S.add_mask(mask);
         end
@@ -226,10 +224,15 @@ disp(['Started frame: ',num2str(t)]);
             %frame_obj.(seg_channel_name).foci.BW = S.BW;
             %Add sub-nuclear segmented nucleoli. 
             frame_obj.(seg_channel_name).foci.stats =S.stats;
-        
+            if ~isempty(S.spot_fits)
+                frame_obj.(seg_channel_name).foci.fits =S.spot_fits;
+            end
         case 'spots'
 
             frame_obj.(seg_channel_name).spots.stats=S.stats;
+            if ~isempty(S.spot_fits)
+                frame_obj.(seg_channel_name).spots.fits =S.spot_fits;
+            end
     end
        
     %Save frame_obj

@@ -1,4 +1,4 @@
-% Convers the index of matrices from a sub-region to the original matrix.
+% Converts the index of matrices from a sub-region to the original matrix.
 % Important for performing tasks on smaller part of image.
 
 function idx = sub_2_large_ind( sub_ind, ranges, sub_size, og_size )

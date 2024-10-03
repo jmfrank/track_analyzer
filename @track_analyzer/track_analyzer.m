@@ -59,6 +59,8 @@ classdef track_analyzer
     
     methods
         
+
+
         %Save
         function obj = save(obj)
 
@@ -384,7 +386,7 @@ classdef track_analyzer
         %Get reader for image. 
         function reader = get_reader(obj)
             
-            reader=bfGetReader(obj.exp_info.img_file);
+            reader=get_memo_reader(obj.exp_info.img_file);
             
         end
                 
@@ -504,6 +506,7 @@ classdef track_analyzer
             obj.exp_info.params=[];
             obj.save();
         end
+        
 
     end
     

@@ -53,9 +53,9 @@ classdef segmenter < handle
             obj.params=params;
             obj.t=t;
             obj.seg_type=seg_type;
-            
+            obj.BW = false(size(obj.img));
             %Default mask is blank. 
-            obj.mask = false(size(obj.img));            
+            obj.mask = false(size(obj.img));    
             if nargin > 5 % need to provide msk_pxs. 
                 obj.add_mask(msk_pxs);  
             end
@@ -892,7 +892,7 @@ classdef segmenter < handle
 
             % build a mask binary. Use size of BW because that can be
             % re-scaled. 
-            obj.mask = false(size(obj.img));
+            obj.mask = false(size(obj.BW));
             obj.mask( cat(1, msk_pxs{:}) ) = 1;
             
         end
@@ -928,15 +928,20 @@ classdef segmenter < handle
 
         end
 
-        % erode the masks. 
-        function erode_mask(obj)
+        % erode or dilate the masks. use negative values for erosion!
+        function refine_mask(obj)
             % Erosion strel
-            SE = strel('disk',obj.params.mask_erosion_size);
-            mask = imerode(obj.mask,SE);
-            obj.mask=mask;
-            stats=regionprops(newBW,'Centroid','PixelIdxList'); 
-            error('Need to fix this...')
-            obj.msk_pxs = stats.PixelIdxList;
+            SE = strel('disk',abs(obj.params.mask_erosion_size));
+
+            if obj.params.mask_erosion_size < 0
+                obj.mask = imerode(obj.mask,SE);
+
+            else
+                obj.mask = imdilate(obj.mask,SE);
+            end
+            
+            stats=regionprops(obj.mask,'Centroid','PixelIdxList'); 
+            obj.msk_pxs = list_2_cell_array( stats, 'PixelIdxList');
             
         end
 
@@ -962,6 +967,17 @@ classdef segmenter < handle
 
         end
 
+        function filter_spot_snr(obj)
+            sel = [obj.spot_fits.snr] >= obj.params.spot_snr_threshold;
+            obj.spot_fits = obj.spot_fits(sel);
+
+            % rebuild  BW. 
+            obj.BW = false(size(obj.BW));
+            obj.BW( cat(1,obj.spot_fits(:).PixelIdxList) ) = 1;
+            obj.bw2stats()
+
+        end
+
     end
 
             
@@ -984,20 +1000,7 @@ classdef segmenter < handle
          
             % default to 3D stats for all seg_types. 
             obj.stats = obj.get_3D_stats(obj.BW);
-
-            % 
-            % % Regenerate stats for different types of segmentation. 
-            % switch obj.seg_type
-            % 
-            %     case 'cells'
-            % 
-            %         obj.stats = regionprops(logical(obj.BW),'Centroid','Area','PixelList','PixelIdxList');
-            % 
-            %     case { 'spots', 'foci' }
-            % 
-            %         obj.stats = get_3D_stats(obj.BW);
-            % end
-
+ 
         end
         
         % Useful function for standardizing the stats structure for 3D
