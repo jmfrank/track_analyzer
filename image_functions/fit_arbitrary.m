@@ -190,7 +190,6 @@ switch fit_dims
             % Calculate mean bg intensityies.
             bg_int = img_sub_stack(this_bg);
             mean_bg = mean( bg_int );
-            bg_std  = std(bg_int);
 
             % Create threshold for foreground pixels based on bg+ std*X. This
             % allows more accurate measurement of blob wrt local background
@@ -203,6 +202,8 @@ switch fit_dims
             %this_fg = S( idx ).PixelIdxList;
             %this_fg_mask = false(size(fg_mask));
             %this_fg_mask(this_fg) = 1;
+
+
             this_fg = find(fg_sub_stack);
             this_fg_mask = fg_sub_stack;
 
@@ -221,7 +222,9 @@ switch fit_dims
             fit(i).mean_int = mean(fg_int);    
             fit(i).real_bg  = mean_bg;
             fit(i).sum_int  = sum(fg_int);
+            fit(i).peak     = max(fg_int);
             fit(i).snr      = max(fg_int)/std(bg_int);
+            
 
             if isempty(fit(i).snr) | isinf(fit(i).snr) | isnan(fit(i).snr)
 
