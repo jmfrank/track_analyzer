@@ -10,7 +10,7 @@
 %nuclear intensity for the pre-calculated mask. Then take that plane +/- a
 %few other planes to do MIP and nuc/cyto calculations
 
-function obj = nuc_cyto_3D(obj, params, step, force_frames)
+function obj = nuc_cyto_3D(obj, params, force_frames)
 
 debug = 0;
 if(debug)
@@ -28,7 +28,7 @@ channel_str = ['seg_channel_',pad(num2str(params.seg_channel),2,'left','0')];
 Z = obj.exp_info.z_planes;
 T = obj.exp_info.t_frames;
 
-if nargin < 4
+if nargin < 3
     frames = 1:T;
 else
     frames = force_frames;
@@ -59,6 +59,10 @@ for t = frames
     %Get the bio-formats image index corresponding to this z-stack:
     msk_img = get_stack(reader,t,params.seg_channel);
     sig_img = get_stack(reader,t,params.sig_channel);
+
+    %Check for rescaling? Shouldn't matter since we unscaled the cell
+    %masks....
+    %obj.exp_info.params.(['channel_',pad(num2str(params.seg_channel))])
     
     %Clear out bad values (stitching can create 0 valued pixels at edge). 
     zSEL = sig_img == 0;
@@ -67,8 +71,8 @@ for t = frames
     msk_img(zSEL) = NaN;
    
     %Loop over detected cells
-    if isfield(frame_obj.(channel_str),'PixelIdxList')
-        n_cells = length(frame_obj.(channel_str).PixelIdxList);
+    if isfield(frame_obj.(channel_str).(params.type).stats,'PixelIdxList')
+        n_cells = length(frame_obj.(channel_str).(params.type).stats);
     else
         disp(['No cells in frame: ', num2str(t)])
         continue
@@ -76,17 +80,19 @@ for t = frames
             
     %Create empty structure for nuclear / cytoplasm calculations
     data = gen_data_struct( n_cells );
-        
+    
+    % Object stats. 
+    stats = frame_obj.(channel_str).(params.type).stats;
     %Loop over cells. 
-    f = waitbar(0, 'Starting');
-    parfor j = 1:n_cells
+    %f = waitbar(0, 'Starting');
+    for j = 1:n_cells
         % wwait bar. 
         %waitbar(j/n_cells, f, sprintf('Progress: %d %%', floor(j/n_cells*100)));
         %pause(0.1);
         
         %Get a 3D mask of this cell....
         BW = zeros(size_y,size_x,size_z);
-        px = frame_obj.(channel_str).PixelIdxList{j};
+        px =stats(j).PixelIdxList;
         BW(px) = 1;
         
         %Get pixel coordinates. 
@@ -117,7 +123,7 @@ for t = frames
         %Tricky part: we need to ignore pixels belonging to other nuclei! 
             %All PixelIdx NOT belonging to cell j. 
             sel = [1:n_cells] ~= j;
-            ind = cat(1,frame_obj.(channel_str).PixelIdxList{sel});
+            ind = cat(1,stats(sel).PixelIdxList);
             not_this_cell = false(size_y,size_x,size_z);
             not_this_cell(ind) = 1;
             %Using not_this_cell as mask, replace all pixels with NaN. 
@@ -127,7 +133,7 @@ for t = frames
         sub_img = double(this_img(y_range, x_range, z_range));
         
         %Use intensity of nuclear region to minimize nucleolar regions.
-        if step.nuc_thresh
+        if params.nuc_thresh
 
             %Which img do we use? 
             if strcmp(params.nuc_thresh_channel,'self')
@@ -150,10 +156,10 @@ for t = frames
         data(j) = analyze_roi(sub_img, sub_mask, int_mask, j, params );
         %kkk=1
     end
-    close(f);
+    %close(f);
     
     %Now save the frame_obj. Saving to a channel specific field.
-    frame_obj.(['channel_',pad(num2str(params.sig_channel),2,'left','0')]) = data;
+    frame_obj.(['seg_channel_',pad(num2str(params.sig_channel),2,'left','0')]).(params.type) = data;
     save(seg_files{t},'frame_obj','-append')
 
     if(debug);pause;if(i < length(obj.img_files));clf(7);end;end

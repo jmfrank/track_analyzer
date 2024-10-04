@@ -110,22 +110,24 @@ disp(['Started frame: ',num2str(t)]);
         idx = find(strcmp('add_mask',{obj.exp_info.steps.(CHANNEL_name).(seg_type)(:).type}),1); 
         mask_channel = obj.exp_info.steps.(CHANNEL_name).(seg_type)(idx).value;    
         msk_channel_str = ['seg_channel_',pad(num2str(mask_channel),2,'left','0')];
-        % reduce size if needed: 
-        if img_scale > 1
+        % No longer descaling masks to original size. that confused
+        % everything. 
+        %if img_scale > 1
 
             % Make a new BW from original mask data. For now, masks are
             % always cells. 
-            og_mask = cat(1,frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
-            og_bw = obj.rebuild_BW(og_mask);
-            newBW=imresize3(og_bw, 1/img_scale);
-            mask_stats=regionprops(newBW,'PixelIdxList');
+            %og_mask = cat(1,frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
+            %og_bw = obj.rebuild_BW(og_mask);
+            %newBW=imresize3(og_bw, 1/img_scale);
+            %mask_stats=regionprops(newBW,'PixelIdxList');
       
-        else
-            n_cells = length(frame_obj.(msk_channel_str).cells.stats); 
-            mask_stats(n_cells,1) = struct('PixelIdxList',[]);
-            [mask_stats.PixelIdxList] = deal(frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
-            %mask_stats = frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
-        end
+        %else
+        %end
+
+
+        n_cells = length(frame_obj.(msk_channel_str).cells.stats); 
+        mask_stats(n_cells,1) = struct('PixelIdxList',[]);
+        [mask_stats.PixelIdxList] = deal(frame_obj.(msk_channel_str).cells.stats.PixelIdxList);
     
         % send to segmenter. convert mask stats to a cell array for use
         % with segmenter. 
@@ -139,7 +141,7 @@ disp(['Started frame: ',num2str(t)]);
     % Loop over steps. params from obj.obj.exp_info. 
     seg_steps = obj.exp_info.steps.(CHANNEL_name).(seg_type);
     
-    % ignore 'add mask' step. 
+    % ignore 'add mask' step. Done above ^^^
     ignore = strcmp('add_mask',{obj.exp_info.steps.(CHANNEL_name).(seg_type)(:).type});
     seg_steps = seg_steps(~ignore);
     
@@ -151,22 +153,15 @@ disp(['Started frame: ',num2str(t)]);
     end
 
     % Compensate if original image was re-scaled for speed. 
-    if img_scale > 1
-        S.reverse_scaling(original_size);
-        display('reverse_scaled')
-    end
+    %if img_scale > 1
+    %    S.reverse_scaling(original_size);
+    %    display('reverse_scaled')
+    %end
     
 
     % Assign final objects to cell masks. First we must add back the
     % original cell mask prior to scaling. 
     if strcmp(seg_type, 'foci') | strcmp(seg_type, 'spots')
-        if img_scale > 1
-            % cell array of masks. 
-            original_mask = list_2_cell_array( frame_obj.(msk_channel_str).cells.stats, 'PixelIdxList');
-            S.add_mask(original_mask) 
-        else
-            S.add_mask(mask);
-        end
         S.assign_objects_2_cells();
     end
 
