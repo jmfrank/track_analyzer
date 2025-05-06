@@ -54,8 +54,8 @@ classdef segmenter < handle
             obj.t=t;
             obj.seg_type=seg_type;
             obj.BW = false(size(obj.img));
-            %Default mask is blank. 
-            obj.mask = false(size(obj.img));    
+            %Default mask is True! Hope this doens't screw things up...  
+            obj.mask = true(size(obj.img));    
             if nargin > 5 % need to provide msk_pxs. 
                 obj.add_mask(msk_pxs);  
             end
@@ -920,19 +920,21 @@ classdef segmenter < handle
                 %through error if no overlap. 
                 if sum(U)==0
                     warning('No overlap detected between segmented object and cell masks')
+                     obj.stats(i).assignment=0;
+                else
+
+                    [~, obj.stats(i).assignment] = max(U);
                 end
-
-                [~, obj.stats(i).assignment] = max(U);
-
             end
 
         end
 
         % erode or dilate the masks. use negative values for erosion!
         function refine_mask(obj)
+            
             % Erosion strel
             SE = strel('disk',abs(obj.params.mask_erosion_size));
-
+            
             if obj.params.mask_erosion_size < 0
                 obj.mask = imerode(obj.mask,SE);
 
@@ -940,7 +942,20 @@ classdef segmenter < handle
                 obj.mask = imdilate(obj.mask,SE);
             end
             
-            stats=regionprops(obj.mask,'Centroid','PixelIdxList'); 
+            new_stats=regionprops(obj.mask,'Centroid','PixelIdxList');
+
+
+            % Now compare intersection of PixelIdxlists. 
+            og_msk = obj.msk_pxs;
+            for i = 1:length(og_msk)
+                U = zeros(1,length(new_stats));
+                for j = 1:length(new_stats)
+                    U(j) =length(intersect(og_msk{i},new_stats(j).PixelIdxList));
+                end
+                [~,assignment(i)] = max(U);  
+            end
+            
+            stats = new_stats(assignment);
             obj.msk_pxs = list_2_cell_array( stats, 'PixelIdxList');
             
         end

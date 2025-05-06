@@ -465,7 +465,7 @@ classdef track_analyzer
                 case 16
                     stack = uint16(stack);
                 case 12
-                    error('Need to add 12-bit case scenario')
+                    stack = uint16(stack);
                 case 8
                     stack = uint8(stack);
             end
@@ -486,7 +486,7 @@ classdef track_analyzer
         end
    
         % Rebuild a BW from pixelIdxList (cell array or single vector of all positive pixels). 
-        function BW = rebuild_BW(obj, pixel_list)
+        function BW = rebuild_BW(obj, pixel_list, img_size)
            
             if iscell(pixel_list)
                 pixel_list = cat(1,pixel_list{:});
@@ -495,8 +495,15 @@ classdef track_analyzer
             if ~isvector(pixel_list)
                 error('Pixel list is wrong type')
             end
-            BW = false( [obj.exp_info.img_size,obj.exp_info.z_planes]);
-            BW(pixel_list) = 1;
+
+            if nargin < 3
+
+                BW = false( [obj.exp_info.img_size,obj.exp_info.z_planes]);
+                BW(pixel_list) = 1;
+            else
+                BW = false( img_size);
+                BW(pixel_list) = 1;
+            end
         end
        
         % remove existing parameters and segmentation steps. 

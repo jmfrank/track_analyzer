@@ -13,7 +13,7 @@ csv_file=csv_files{2}
 
 %Read csv file
 [fid message ] = fopen(strtrim(csv_file));
-data = textscan(fid,'%s %s',800,'delimiter',',');
+data = textscan(fid,'%s %s',5000,'delimiter',',');
 fclose(fid);
 start_row = size(data{1},1)+1;
 

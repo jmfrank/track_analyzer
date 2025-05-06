@@ -66,7 +66,8 @@ end
 %Get segmentation file names. 
 seg_files = obj.get_frame_files;
 
-disp(['Intensity analysis using channel ',channel_str])
+disp(['Intensity analysis using segmented channel ',channel_str])
+disp(['Intensity analysis using signal channel ',num2str(params.sig_channel)])
 
 for t = frames
     display(['Analyzing frame: ',num2str(t)])
@@ -274,7 +275,7 @@ end
 function data = gen_data_struct( N )
 
 %Fields
-data(N) = struct('sum_int',[],'mean_int',[],'cell_id',[],'local_background',[]);
+data(N) = struct('sum_int',[],'mean_int',[],'local_background',[]);
 
 end
 %% DEBUGGING code for plotting contours. 

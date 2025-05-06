@@ -8,7 +8,7 @@ function exp_info = get_exp_info(info)
 if exist( info.csv_file,'file')
     % Using abolute path. 
     [fid message] = fopen(strtrim(info.csv_file));
-    data = textscan(fid,'%s %s %s %s %s %s %q %s %s',800,'delimiter',',');
+    data = textscan(fid,'%s %s %s %s %s %s %q %s %s',2000,'delimiter',',');
     fclose(fid);
     loc = 'Work';
 else

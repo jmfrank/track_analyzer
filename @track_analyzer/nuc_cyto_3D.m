@@ -49,16 +49,21 @@ seg_files = obj.get_frame_files;
 for t = frames
     display(['Analyzing mean signal of frame: ',num2str(t)])
     tic
-    %Create empty image to fill up
-    msk_img = zeros(size_y,size_x,Z);
-    sig_img = zeros(size_y,size_x,Z);
-    
+
     %Load the Frame_obj file associated with this image
     load(seg_files{t});
     
     %Get the bio-formats image index corresponding to this z-stack:
     msk_img = get_stack(reader,t,params.seg_channel);
     sig_img = get_stack(reader,t,params.sig_channel);
+
+    %Rescaling if needed 
+    if params.scale > 1
+        msk_img = imresize3(msk_img,1/params.scale);
+        sig_img = imresize3(sig_img,1/params.scale);
+    end
+    
+    [size_y,size_x,size_z] = size(msk_img);
 
     %Check for rescaling? Shouldn't matter since we unscaled the cell
     %masks....

@@ -95,7 +95,9 @@ disp(['Started frame: ',num2str(t)]);
     img_scale = obj.exp_info.params.(CHANNEL_name).(seg_type).img_scale;
     if img_scale > 1
         I = imresize3(I,1/img_scale);
-        display(["New image size ", string(size(I))])
+        display(["Rescaling image by: ", string(img_scale)]);
+        display(["Rescaling image to: ", string(size(I))]);
+        
     end
 
 
@@ -161,7 +163,7 @@ disp(['Started frame: ',num2str(t)]);
 
     % Assign final objects to cell masks. First we must add back the
     % original cell mask prior to scaling. 
-    if strcmp(seg_type, 'foci') | strcmp(seg_type, 'spots')
+    if strcmp(seg_type, 'spots')
         S.assign_objects_2_cells();
     end
 

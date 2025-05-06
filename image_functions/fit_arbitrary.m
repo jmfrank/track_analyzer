@@ -1,7 +1,7 @@
 %Pass a 3D frame and find spots. Uses the stats object pixels to query the
 %local background to give blob measurements. 
 
-% BW = cell nuclelus mask. 
+% BW = typically a cell mask. 
 function fit = fit_arbitrary( img, stats, BW, params )
 
 debug = 0;
